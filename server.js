@@ -8,7 +8,7 @@ app.use(express.json());
 const port= process.env.PORT || 6000
 
 app.get('/', (req, res)=>{
-    res.send('Jai Shree Ram');
+    res.send('Doctors-Appointment-Booking-CRM');
 });
 
 require('./db/DB');
