@@ -7,13 +7,11 @@ const signup = async (req, res) => {
     const { name, mobileNo, emailId, password, address, role } = req.body;
 
     try {
-        // Check if the user already exists
         const existingUser = await User.findOne({ emailId });
         if (existingUser) {
             return res.status(400).json({ message: 'User already exists!' });
         }
 
-        // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Create a new user
@@ -73,7 +71,7 @@ const login = async (req, res) => {
 
 // Edit User Details
 const editUserDetails = async (req, res) => {
-    const { userId } = req.params; // Assuming the user ID is passed as a URL parameter
+    const { userId } = req.params; 
     const { name, mobileNo, emailId, address, role } = req.body;
 
     try {
