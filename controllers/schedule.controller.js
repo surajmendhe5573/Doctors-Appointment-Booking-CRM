@@ -273,3 +273,65 @@ exports.transferAppointment = async (req, res) => {
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
+
+// Retrieve all upcoming schedules
+exports.getUpcomingSchedules = async (req, res) => {
+    try {
+        // Retrieve all schedules with status 'Upcoming' and populate fields
+        const schedules = await Schedule.find({ status: 'Upcoming' })
+            .populate('doctor', 'name') 
+            .populate('hospital', 'hospitalName'); 
+
+        // Format the response
+        const formattedSchedules = schedules.map(schedule => ({
+            _id: schedule._id,
+            doctorName: schedule.doctor.name,
+            hospitalName: schedule.hospital.hospitalName,
+            patientName: schedule.patientName,
+            surgeryType: schedule.surgeryType,
+            day: schedule.day,
+            date: schedule.date,
+            time: schedule.time,
+            status: schedule.status,
+        }));
+
+        res.status(200).json({
+            message: 'Upcoming schedules retrieved successfully',
+            schedules: formattedSchedules,
+        });
+    } catch (error) {
+        console.error('Error retrieving upcoming schedules:', error.message);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+};
+
+// Retrieve all done schedules
+exports.getDoneSchedules = async (req, res) => {
+    try {
+        // Retrieve all schedules with status 'Done' and populate fields
+        const schedules = await Schedule.find({ status: 'Done' })
+            .populate('doctor', 'name') 
+            .populate('hospital', 'hospitalName'); 
+
+        // Format the response
+        const formattedSchedules = schedules.map(schedule => ({
+            _id: schedule._id,
+            doctorName: schedule.doctor.name,
+            hospitalName: schedule.hospital.hospitalName,
+            patientName: schedule.patientName,
+            surgeryType: schedule.surgeryType,
+            day: schedule.day,
+            date: schedule.date,
+            time: schedule.time,
+            status: schedule.status,
+        }));
+
+        res.status(200).json({
+            message: 'Done schedules retrieved successfully',
+            schedules: formattedSchedules,
+        });
+    } catch (error) {
+        console.error('Error retrieving done schedules:', error.message);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+};

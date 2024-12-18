@@ -32,7 +32,7 @@ const scheduleSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    status: { type: String, default: "Upcoming" } // "Upcoming" or "Done"
+    status: { type: String, enum:['Upcoming', 'Done', 'Not Available'], default: 'Upcoming' } 
   },
   {
     timestamps: true, 
