@@ -177,6 +177,7 @@ exports.getAllSchedules = async (req, res) => {
             day: schedule.day,
             date: schedule.date,
             time: schedule.time,
+            status: schedule.status,
         }));
 
         res.status(200).json({
@@ -189,3 +190,86 @@ exports.getAllSchedules = async (req, res) => {
     }
 };
 
+// Update the status 
+exports.toggleScheduleStatus = async (req, res) => {
+    try {
+      const { status } = req.body;
+      const updatedSchedule = await Schedule.findByIdAndUpdate(
+        req.params.scheduleId,
+        { status },
+        { new: true }
+      );
+      if (!updatedSchedule) {
+        return res.status(404).json({ message: "Schedule not found" });
+      }
+      res.status(200).json({
+        message: "Schedule status updated successfully",
+        schedule: updatedSchedule,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  };
+  
+// Transfer appointment (Update doctor or hospital)
+exports.transferAppointment = async (req, res) => {
+    try {
+        const { doctorId, hospitalName } = req.body;
+
+        let updates = {};
+
+        // Update doctor if provided
+        if (doctorId) {
+            const doctor = await User.findById(doctorId);
+            if (!doctor || doctor.role !== 'Doctor') {
+                return res.status(404).json({ message: 'Doctor not found!' });
+            }
+            updates.doctor = doctorId;
+        }
+
+        // Update hospital if provided
+        if (hospitalName) {
+            const hospital = await Hospital.findOne({ hospitalName });
+            if (!hospital) {
+                return res.status(404).json({ message: 'Hospital not found!' });
+            }
+            updates.hospital = hospital._id;
+        }
+
+        const updatedSchedule = await Schedule.findByIdAndUpdate(
+            req.params.scheduleId,
+            updates,
+            { new: true }
+        )
+            .populate('doctor', 'name')
+            .populate('hospital', 'hospitalName');
+
+        if (!updatedSchedule) {
+            return res.status(404).json({ message: 'Schedule not found!' });
+        }
+
+        // Transform the response
+        const formattedSchedule = {
+            _id: updatedSchedule._id,
+            doctorName: updatedSchedule.doctor?.name || 'N/A',
+            hospitalName: updatedSchedule.hospital?.hospitalName || 'N/A',
+            patientName: updatedSchedule.patientName,
+            surgeryType: updatedSchedule.surgeryType,
+            day: updatedSchedule.day,
+            date: new Date(updatedSchedule.date).toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+            }),
+            time: updatedSchedule.time,
+        };
+
+        res.status(200).json({
+            message: 'Schedule updated successfully',
+            schedules: [formattedSchedule],
+        });
+    } catch (error) {
+        console.error('Error transferring schedule:', error.message);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+};
