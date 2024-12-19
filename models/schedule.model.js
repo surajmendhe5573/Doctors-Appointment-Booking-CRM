@@ -24,12 +24,12 @@ const scheduleSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    date: {
-      type: String,
+    startDateTime : {
+      type: Date,
       required: true,
     },
-    time: {
-      type: String,
+    endDateTime : {
+      type: Date,
       required: true,
     },
     status: { type: String, enum:['Upcoming', 'Done', 'Not Available'], default: 'Upcoming' } 

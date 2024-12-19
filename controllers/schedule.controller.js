@@ -1,14 +1,35 @@
 const User = require('../models/user.model');
 const Hospital = require('../models/hospital.model');
 const Schedule = require('../models/schedule.model');
+const moment = require('moment');
 
 exports.createSchedule = async (req, res) => {
     try {
-        const { doctorId, hospitalName, patientName, surgeryType, day, date, time } = req.body;
+        const { doctorId, hospitalName, patientName, surgeryType, startDateTime, endDateTime, day } = req.body;
 
-        // Validate the day
+        // Validate the start and end date/times
+        if (!startDateTime || !endDateTime) {
+            return res.status(400).json({ message: 'Start date/time and End date/time are required.' });
+        }
+
+        // Parse the provided startDateTime and endDateTime using moment.js
+        const start = moment(startDateTime, 'D MMM, YYYY h:mm A');
+        const end = moment(endDateTime, 'D MMM, YYYY h:mm A');
+
+        // Check if the parsed date is valid
+        if (!start.isValid() || !end.isValid()) {
+            return res.status(400).json({ message: 'Invalid date/time format provided. Use "1 Dec, 2024 9:00 AM" format.' });
+        }
+
+        // Convert to JavaScript Date objects for use in the Schedule model
+        const startDate = start.toDate();
+        const endDate = end.toDate();
+
+        // Validate the derived day from startDateTime if it's not passed
+        let derivedDay = day || start.toLocaleString('en-US', { weekday: 'long' }); // Use provided day or derive from startDateTime
+
         const validDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        if (!validDays.includes(day)) {
+        if (!validDays.includes(derivedDay)) {
             return res.status(400).json({ message: 'Invalid day provided. Must be Sunday to Saturday.' });
         }
 
@@ -30,9 +51,10 @@ exports.createSchedule = async (req, res) => {
             hospital: hospital._id,
             patientName,
             surgeryType,
-            day,
-            date,
-            time
+            day: derivedDay,  // Use the derived day (from request or calculated)
+            startDateTime: startDate,
+            endDateTime: endDate,
+            status: 'Upcoming', // Default status
         });
 
         // Save the schedule
@@ -43,16 +65,17 @@ exports.createSchedule = async (req, res) => {
             .populate('doctor', 'name') // Populate doctor's name
             .populate('hospital', 'hospitalName'); // Populate hospital's name
 
-        // Format the response
+        // Format the response with formatted date/times
         const response = {
             _id: populatedSchedule._id,
             doctorName: populatedSchedule.doctor.name,
             hospitalName: populatedSchedule.hospital.hospitalName,
             patientName: populatedSchedule.patientName,
             surgeryType: populatedSchedule.surgeryType,
-            day: populatedSchedule.day,
-            date: populatedSchedule.date,
-            time: populatedSchedule.time,
+            day: populatedSchedule.day, // Include day in response
+            startDateTime: moment(populatedSchedule.startDateTime).format('D MMM, YYYY h:mm A'), // Format date
+            endDateTime: moment(populatedSchedule.endDateTime).format('D MMM, YYYY h:mm A'), // Format date
+            status: populatedSchedule.status,
         };
 
         res.status(201).json({
@@ -68,64 +91,82 @@ exports.createSchedule = async (req, res) => {
 // Update Schedule
 exports.updateSchedule = async (req, res) => {
     try {
-        const { scheduleId } = req.params;
-        const { doctorId, hospitalName, patientName, surgeryType, day, date, time } = req.body;
+        const { scheduleId } = req.params; // The scheduleId from the URL parameter
+        const { doctorId, hospitalName, patientName, surgeryType, startDateTime, endDateTime, day } = req.body;
 
-        // Validate the day
+        // Validate the start and end date/times
+        if (!startDateTime || !endDateTime) {
+            return res.status(400).json({ message: 'Start date/time and End date/time are required.' });
+        }
+
+        // Parse the provided startDateTime and endDateTime using moment.js
+        const start = moment(startDateTime, 'D MMM, YYYY h:mm A');
+        const end = moment(endDateTime, 'D MMM, YYYY h:mm A');
+
+        // Check if the parsed date is valid
+        if (!start.isValid() || !end.isValid()) {
+            return res.status(400).json({ message: 'Invalid date/time format provided. Use "1 Dec, 2024 9:00 AM" format.' });
+        }
+
+        // Convert to JavaScript Date objects for use in the Schedule model
+        const startDate = start.toDate();
+        const endDate = end.toDate();
+
+        // Validate the derived day from startDateTime if it's not passed
+        let derivedDay = day || start.toLocaleString('en-US', { weekday: 'long' }); // Use provided day or derive from startDateTime
+
         const validDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        if (day && !validDays.includes(day)) {
+        if (!validDays.includes(derivedDay)) {
             return res.status(400).json({ message: 'Invalid day provided. Must be Sunday to Saturday.' });
         }
 
-        // Check if hospital exists if hospitalName is being updated
-        let hospital;
-        if (hospitalName) {
-            hospital = await Hospital.findOne({ hospitalName });
-            if (!hospital) {
-                return res.status(404).json({ message: 'Hospital not found!' });
-            }
+        // Check if hospital exists
+        const hospital = await Hospital.findOne({ hospitalName });
+        if (!hospital) {
+            return res.status(404).json({ message: 'Hospital not found!' });
         }
 
-        // Check if doctor exists if doctorId is being updated
-        let doctor;
-        if (doctorId) {
-            doctor = await User.findById(doctorId);
-            if (!doctor || doctor.role !== 'Doctor') {
-                return res.status(404).json({ message: 'Doctor not found!' });
-            }
+        // Check if doctor exists
+        const doctor = await User.findById(doctorId);
+        if (!doctor || doctor.role !== 'Doctor') {
+            return res.status(404).json({ message: 'Doctor not found!' });
         }
 
-        // Update the schedule
-        const updatedSchedule = await Schedule.findByIdAndUpdate(
-            scheduleId,
-            {
-                ...(doctorId && { doctor: doctorId }),
-                ...(hospital && { hospital: hospital._id }),
-                ...(patientName && { patientName }),
-                ...(surgeryType && { surgeryType }),
-                ...(day && { day }),
-                ...(date && { date }),
-                ...(time && { time }),
-            },
-            { new: true } // Return the updated document
-        )
-            .populate('doctor', 'name') // Populate doctor's name
-            .populate('hospital', 'hospitalName'); // Populate hospital's name
-
-        if (!updatedSchedule) {
+        // Find the existing schedule by ID
+        const schedule = await Schedule.findById(scheduleId);
+        if (!schedule) {
             return res.status(404).json({ message: 'Schedule not found!' });
         }
 
-        // Format the response
+        // Update the schedule with new values
+        schedule.doctor = doctorId;
+        schedule.hospital = hospital._id;
+        schedule.patientName = patientName || schedule.patientName; // Keep existing if not updated
+        schedule.surgeryType = surgeryType || schedule.surgeryType; // Keep existing if not updated
+        schedule.day = derivedDay;
+        schedule.startDateTime = startDate;
+        schedule.endDateTime = endDate;
+        // schedule.status = 'Updated'; // Update status
+
+        // Save the updated schedule
+        const updatedSchedule = await schedule.save();
+
+        // Populate doctor and hospital fields for the response
+        const populatedSchedule = await Schedule.findById(updatedSchedule._id)
+            .populate('doctor', 'name') // Populate doctor's name
+            .populate('hospital', 'hospitalName'); // Populate hospital's name
+
+        // Format the response with formatted date/times
         const response = {
-            _id: updatedSchedule._id,
-            doctorName: updatedSchedule.doctor.name,
-            hospitalName: updatedSchedule.hospital.hospitalName,
-            patientName: updatedSchedule.patientName,
-            surgeryType: updatedSchedule.surgeryType,
-            day: updatedSchedule.day,
-            date: updatedSchedule.date,
-            time: updatedSchedule.time,
+            _id: populatedSchedule._id,
+            doctorName: populatedSchedule.doctor.name,
+            hospitalName: populatedSchedule.hospital.hospitalName,
+            patientName: populatedSchedule.patientName,
+            surgeryType: populatedSchedule.surgeryType,
+            day: populatedSchedule.day, // Include day in response
+            startDateTime: moment(populatedSchedule.startDateTime).format('D MMM, YYYY h:mm A'), // Format date
+            endDateTime: moment(populatedSchedule.endDateTime).format('D MMM, YYYY h:mm A'), // Format date
+            status: populatedSchedule.status,
         };
 
         res.status(200).json({
@@ -149,7 +190,6 @@ exports.deleteSchedule = async (req, res) => {
             return res.status(404).json({ message: 'Schedule not found!' });
         }
 
-        // Delete the schedule
         await Schedule.findByIdAndDelete(scheduleId);
 
         res.status(200).json({ message: 'Schedule deleted successfully' });
@@ -162,12 +202,17 @@ exports.deleteSchedule = async (req, res) => {
 // Retrieve all schedules
 exports.getAllSchedules = async (req, res) => {
     try {
-        // Retrieve all schedules and populate fields
+        // Fetch all schedules from the database
         const schedules = await Schedule.find()
             .populate('doctor', 'name') // Populate doctor's name
             .populate('hospital', 'hospitalName'); // Populate hospital's name
 
-        // Format the response
+        // If no schedules found
+        if (schedules.length === 0) {
+            return res.status(404).json({ message: 'No schedules found.' });
+        }
+
+        // Format the schedules response
         const formattedSchedules = schedules.map(schedule => ({
             _id: schedule._id,
             doctorName: schedule.doctor.name,
@@ -175,17 +220,17 @@ exports.getAllSchedules = async (req, res) => {
             patientName: schedule.patientName,
             surgeryType: schedule.surgeryType,
             day: schedule.day,
-            date: schedule.date,
-            time: schedule.time,
+            startDateTime: moment(schedule.startDateTime).format('D MMM, YYYY h:mm A'),
+            endDateTime: moment(schedule.endDateTime).format('D MMM, YYYY h:mm A'),
             status: schedule.status,
         }));
 
         res.status(200).json({
-            message: 'Schedules retrieved successfully',
+            message: 'Schedules fetched successfully',
             schedules: formattedSchedules,
         });
     } catch (error) {
-        console.error('Error retrieving schedules:', error.message);
+        console.error('Error fetching schedules:', error.message);
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
