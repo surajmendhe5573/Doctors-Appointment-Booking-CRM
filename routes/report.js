@@ -3,10 +3,9 @@ const router = express.Router();
 const reportController = require('../controllers/report.controller');
 
 
-router.post('/add', reportController.addReport);  // Add a new report
-router.put('/update/:id', reportController.updateReport);  // Update an existing report
-router.delete('/delete/:id', reportController.deleteReport);  // Delete a report
-router.get('/', reportController.getReports); // Fetch all reports
-
+router.post('/add', reportController.addReport);  // add report
+router.put('/update/:reportId', reportController.updateReport);  // update report
+router.delete('/delete/:reportId', reportController.deleteReport);  // delete report 
+router.get('/', reportController.fetchAllReports);  // fetch all reports
 
 module.exports = router;
