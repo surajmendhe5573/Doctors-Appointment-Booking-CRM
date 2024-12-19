@@ -1,137 +1,104 @@
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const User = require('../models/user.model'); 
 
-// Signup 
-const signup = async (req, res) => {
-    const { name, mobileNo, emailId, password, address, role } = req.body;
-
+const addUser = async (req, res) => {
     try {
-        const existingUser = await User.findOne({ emailId });
-        if (existingUser) {
-            return res.status(400).json({ message: 'User already exists!' });
+        const { fullName, emailId, phoneNo, address, role } = req.body;
+        const userExist= await User.findOne({emailId});
+
+        if(userExist){
+            return res.status(400).json({ message: 'Email already exists.' });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        if (!fullName || !emailId || !phoneNo || !address || !role) {
+            return res.status(400).json({ message: 'All fields are required.' });
+        }
 
-        // Create a new user
         const newUser = new User({
-            name,
-            mobileNo,
+            fullName,
             emailId,
-            password: hashedPassword,
+            phoneNo,
             address,
-            role
+            role,
         });
 
         await newUser.save();
 
-        // Convert to plain object and exclude password
-        const userResponse = newUser.toObject();
-        delete userResponse.password;
-
-        res.status(201).json({ message: 'User created successfully!', newUser:userResponse});
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
+        return res.status(201).json({ message: 'User added successfully.', user: newUser });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'An error occurred.', error: error.message });
     }
 };
 
-// Login 
-const login = async (req, res) => {
-    const { emailId, password } = req.body;
-
+// Update an existing user
+const updateUser = async (req, res) => {
     try {
-        // Find the user by email
-        const user = await User.findOne({ emailId });
-        if (!user) {
-            return res.status(400).json({ message: 'User not found!' });
+        const { id } = req.params; // User ID from URL params
+        const { fullName, emailId, phoneNo, address, role } = req.body;
+
+        // Validate required fields
+        if (!fullName || !emailId || !phoneNo || !address || !role) {
+            return res.status(400).json({ message: 'All fields are required.' });
         }
 
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            return res.status(400).json({ message: 'Invalid credentials!' });
-        }
-
-        const token = jwt.sign(
-            { userId: user._id, role: user.role },
-            process.env.JWT_SECRET, 
-            { expiresIn: '1h' }
+        // Find user by ID and update
+        const updatedUser = await User.findByIdAndUpdate(
+            id,
+            { fullName, emailId, phoneNo, address, role },
+            { new: true } // Return the updated document
         );
 
-        res.status(200).json({
-            message: 'Login successful!',
-            token
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
-    }
-};
-
-// Edit User Details
-const editUserDetails = async (req, res) => {
-    const { userId } = req.params; 
-    const { name, mobileNo, emailId, address, role } = req.body;
-
-    try {
-        // Find the user by ID
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found!' });
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'User not found.' });
         }
 
-        // Update user details
-        if (name) user.name = name;
-        if (mobileNo) user.mobileNo = mobileNo;
-        if (emailId) user.emailId = emailId;
-        if (address) user.address = address;
-        if (role) user.role = role;
-
-        const updatedUser = await user.save();
-
-        // Convert to plain object and exclude password
-        const userResponse = updatedUser.toObject();
-        delete userResponse.password;
-
-        res.status(200).json({
-            message: 'User details updated successfully!',
-            user: userResponse,
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
-    }
-};
-
-// Delete User
-const deleteUser = async (req, res) => {
-    const { userId } = req.params; 
-    try {
-        const user = await User.findByIdAndDelete(userId);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found!' });
-        }
-
-        res.status(200).json({
-            message: 'User deleted successfully!',
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
-    }
-};
-
-// Get all users
-const getAllUsers= async(req, res)=>{
-    try {
-        const users= await User.find({}, '-password');  // Exclude the password field
-        res.status(200).json({message: "Users retrieved successfully", users});
-        
+        return res.status(200).json({ message: 'User updated successfully.', user: updatedUser });
     } catch (error) {
-        res.status(5000).json({message:"Internal server error"});
+        console.log(error);
+        return res.status(500).json({ message: 'An error occurred.', error: error.message });
     }
-}
+};
 
-module.exports = { signup, login, editUserDetails, deleteUser, getAllUsers };
+// Delete a user
+const deleteUser = async (req, res) => {
+    try {
+        const { id } = req.params; // User ID from URL params
 
+        // Find user by ID and delete
+        const deletedUser = await User.findByIdAndDelete(id);
+
+        if (!deletedUser) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        return res.status(200).json({ message: 'User deleted successfully.', user: deletedUser });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'An error occurred.', error: error.message });
+    }
+};
+
+// Retrieve all users
+const getAllUsers = async (req, res) => {
+    try {
+        // Fetch all users from the database
+        const users = await User.find();
+
+        // Check if users exist
+        if (!users.length) {
+            return res.status(404).json({ message: 'No users found.' });
+        }
+
+        return res.status(200).json({ message: 'Users retrieved successfully.', users });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'An error occurred.', error: error.message });
+    }
+};
+
+module.exports = {
+    addUser,
+    updateUser,
+    deleteUser,
+    getAllUsers
+};

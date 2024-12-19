@@ -2,74 +2,110 @@ const Hospital = require('../models/hospital.model');
 
 // Add a new hospital
 const addHospital = async (req, res) => {
-  const { hospitalName, adminPerson, emailId, surgeriesDone, totalPayment, paymentStatus } = req.body;
+    try {
+        const { hospitalName, hospitalEmailId, hospitalPhoneNo, adminFullName, adminPhoneNo } = req.body;
+        
+        if (!hospitalName || !hospitalEmailId || !hospitalPhoneNo || !adminFullName || !adminPhoneNo) {
+            return res.status(400).json({ message: 'All fields are required.' });
+        }
 
-  try {
-    const hospital = new Hospital({
-        hospitalName,
-        adminPerson,
-        emailId,
-        surgeriesDone,
-        totalPayment,
-        paymentStatus,
-      });
-    
-    const savedHospital = await hospital.save();
-    res.status(201).json(savedHospital);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({message: "Internal server error"});
-  }
+        // Check if the hospital already exists (based on email)
+        const existingHospital = await Hospital.findOne({ hospitalEmailId });
+        if (existingHospital) {
+            return res.status(400).json({ message: 'Hospital with this email already exists.' });
+        }
+
+        const newHospital = new Hospital({
+            hospitalName,
+            hospitalEmailId,
+            hospitalPhoneNo,
+            adminFullName,
+            adminPhoneNo,
+        });
+
+        await newHospital.save();
+
+        return res.status(201).json({ message: 'Hospital added successfully.', hospital: newHospital });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'An error occurred.', error: error.message });
+    }
 };
 
-// Update hospital details
-const updateHospitalDetails = async (req, res) => {
-    const { id } = req.params;
-    const updates = req.body; // Expects an object with fields to update
-  
+// Update an existing hospital
+const updateHospital = async (req, res) => {
     try {
-      const updatedHospital = await Hospital.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
-  
-      if (!updatedHospital) {
-        return res.status(404).json({ message: 'Hospital not found!' });
-      }
-  
-      res.status(200).json({
-        message: 'Hospital details updated successfully',
-        hospital: updatedHospital,
-      });
+        const { id } = req.params;
+        const { hospitalName, hospitalEmailId, hospitalPhoneNo, adminFullName, adminPhoneNo } = req.body;
+
+        if (!hospitalName || !hospitalEmailId || !hospitalPhoneNo || !adminFullName || !adminPhoneNo) {
+            return res.status(400).json({ message: 'All fields are required.' });
+        }
+
+        // Find hospital by ID and update
+        const updatedHospital = await Hospital.findByIdAndUpdate(
+            id,
+            {
+                hospitalName,
+                hospitalEmailId,
+                hospitalPhoneNo,
+                adminFullName,
+                adminPhoneNo,
+            },
+            { new: true } 
+        );
+
+        if (!updatedHospital) {
+            return res.status(404).json({ message: 'Hospital not found.' });
+        }
+
+        return res.status(200).json({ message: 'Hospital updated successfully.', hospital: updatedHospital });
     } catch (error) {
-      console.log('Error updating hospital:', error.message);
-      res.status(500).json({ message: "Internal server error", details: error.message });
+        console.log(error);
+        return res.status(500).json({ message: 'An error occurred.', error: error.message });
     }
-  };
+};
 
 // Delete a hospital
 const deleteHospital = async (req, res) => {
-  const { id } = req.params;
-
   try {
-    const hospital=  await Hospital.findByIdAndDelete(id);
+      const { id } = req.params; // Hospital ID from the URL
 
-    if (!hospital) {
-        return res.status(404).json({ message: 'hospital not found!' });
-    }
+      // Find and delete the hospital by ID
+      const deletedHospital = await Hospital.findByIdAndDelete(id);
 
-    res.json({ message: 'Hospital deleted successfully' });
-  } catch (err) {
-    res.status(500).json({message: "Internal server error"});
+      if (!deletedHospital) {
+          return res.status(404).json({ message: 'Hospital not found.' });
+      }
+
+      return res.status(200).json({ message: 'Hospital deleted successfully.', hospital: deletedHospital });
+  } catch (error) {
+      console.log(error);
+      return res.status(500).json({ message: 'An error occurred.', error: error.message });
   }
 };
 
-// Retrieved hospitals
-const fetchAllHospitals= async(req, res)=>{
-    try {
-        const hospitals= await Hospital.find();
-        res.status(200).json({message: "Hospitals retrieved successfully", hospitals});
-        
-    } catch (error) {
-        res.status(500).json({message: "Internal server error"})
-    }
-}
+// Fetch all hospitals
+const getAllHospitals = async (req, res) => {
+  try {
+      // Retrieve all hospitals from the database
+      const hospitals = await Hospital.find();
 
-module.exports= {addHospital, updateHospitalDetails, deleteHospital, fetchAllHospitals};
+      if (!hospitals.length) {
+          return res.status(404).json({ message: 'No hospitals found.' });
+      }
+
+      return res.status(200).json({ message: 'Hospitals retrieved successfully.', hospitals });
+  } catch (error) {
+      console.log(error);
+      return res.status(500).json({ message: 'An error occurred.', error: error.message });
+  }
+};
+
+
+module.exports = {
+    addHospital,
+    updateHospital,
+    deleteHospital,
+    getAllHospitals
+};

@@ -1,30 +1,27 @@
-const mongoose= require('mongoose');
+const mongoose = require('mongoose');
 
-const hospitalSchema= new mongoose.Schema({
+const hospitalSchema = new mongoose.Schema({
     hospitalName: {
         type: String,
         required: true
     },
-    adminPerson: {
+    hospitalEmailId: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    hospitalPhoneNo: {
         type: String,
         required: true
     },
-    emailId: {
+    adminFullName: {
         type: String,
         required: true
     },
-    surgeriesDone: {
-        type: Number,
-        require: true
-    },
-    totalPayment: {
+    adminPhoneNo: {
         type: String,
         required: true
-    }, 
-    paymentStatus: {    
-        type: String,   // 'done' or 'due'
-        required: true
-    }
-})
+    },
+}, { timestamps: true }); 
 
-module.exports= new mongoose.model('Hospital', hospitalSchema);
+module.exports = mongoose.model('Hospital', hospitalSchema);
