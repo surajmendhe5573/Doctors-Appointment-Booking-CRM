@@ -281,37 +281,46 @@ exports.transferAppointment = async (req, res) => {
             updates.hospital = hospital._id;
         }
 
-        const updatedSchedule = await Schedule.findByIdAndUpdate(
-            req.params.scheduleId,
-            updates,
-            { new: true }
-        )
-            .populate('doctor', 'name')
-            .populate('hospital', 'hospitalName');
+        const { scheduleId } = req.params; // Extract scheduleId from the URL parameter
 
-        if (!updatedSchedule) {
+        // Find the existing schedule by ID
+        const schedule = await Schedule.findById(scheduleId);
+        if (!schedule) {
             return res.status(404).json({ message: 'Schedule not found!' });
         }
 
-        // Transform the response
-        const formattedSchedule = {
-            _id: updatedSchedule._id,
-            doctorName: updatedSchedule.doctor?.name || 'N/A',
-            hospitalName: updatedSchedule.hospital?.hospitalName || 'N/A',
-            patientName: updatedSchedule.patientName,
-            surgeryType: updatedSchedule.surgeryType,
-            day: updatedSchedule.day,
-            date: new Date(updatedSchedule.date).toLocaleDateString('en-US', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-            }),
-            time: updatedSchedule.time,
+        // Update the schedule with the new doctor or hospital
+        schedule.doctor = updates.doctor || schedule.doctor;
+        schedule.hospital = updates.hospital || schedule.hospital;
+
+        // Save the updated schedule
+        const updatedSchedule = await schedule.save();
+
+        // Populate doctor and hospital fields for the response
+        const populatedSchedule = await Schedule.findById(updatedSchedule._id)
+            .populate('doctor', 'fullName') // Populate doctor's fullName (was 'name', now 'fullName')
+            .populate('hospital', 'hospitalName'); // Populate hospital's name
+
+        // Log the populated data to debug
+        console.log('Populated Schedule:', populatedSchedule);
+        console.log('Doctor:', populatedSchedule.doctor); // Check if the doctor field is populated correctly
+
+        // Format the response with formatted date/times
+        const response = {
+            _id: populatedSchedule._id,
+            doctorName: populatedSchedule.doctor?.fullName || 'N/A', // Use 'fullName' instead of 'name'
+            hospitalName: populatedSchedule.hospital?.hospitalName || 'N/A',
+            patientName: populatedSchedule.patientName,
+            surgeryType: populatedSchedule.surgeryType,
+            day: populatedSchedule.day, // Include day in response
+            startDateTime: moment(populatedSchedule.startDateTime).format('D MMM, YYYY h:mm A'), // Format date
+            endDateTime: moment(populatedSchedule.endDateTime).format('D MMM, YYYY h:mm A'), // Format date
+            status: populatedSchedule.status,
         };
 
         res.status(200).json({
-            message: 'Schedule updated successfully',
-            schedules: [formattedSchedule],
+            message: 'Appointment transferred successfully',
+            schedules: [response],
         });
     } catch (error) {
         console.error('Error transferring schedule:', error.message);
@@ -319,19 +328,20 @@ exports.transferAppointment = async (req, res) => {
     }
 };
 
+
 // Retrieve all upcoming schedules
 exports.getUpcomingSchedules = async (req, res) => {
     try {
         // Retrieve all schedules with status 'Upcoming' and populate fields
         const schedules = await Schedule.find({ status: 'Upcoming' })
-            .populate('doctor', 'name') 
-            .populate('hospital', 'hospitalName'); 
+            .populate('doctor', 'fullName') // Populate doctor's fullName (was 'name', now 'fullName')
+            .populate('hospital', 'hospitalName'); // Populate hospital's name
 
         // Format the response
         const formattedSchedules = schedules.map(schedule => ({
             _id: schedule._id,
-            doctorName: schedule.doctor.name,
-            hospitalName: schedule.hospital.hospitalName,
+            doctorName: schedule.doctor?.fullName || 'N/A', // Use 'fullName' instead of 'name'
+            hospitalName: schedule.hospital?.hospitalName || 'N/A',
             patientName: schedule.patientName,
             surgeryType: schedule.surgeryType,
             day: schedule.day,
@@ -355,14 +365,14 @@ exports.getDoneSchedules = async (req, res) => {
     try {
         // Retrieve all schedules with status 'Done' and populate fields
         const schedules = await Schedule.find({ status: 'Done' })
-            .populate('doctor', 'name') 
-            .populate('hospital', 'hospitalName'); 
+            .populate('doctor', 'fullName') // Populate doctor's fullName (was 'name', now 'fullName')
+            .populate('hospital', 'hospitalName'); // Populate hospital's name
 
         // Format the response
         const formattedSchedules = schedules.map(schedule => ({
             _id: schedule._id,
-            doctorName: schedule.doctor.name,
-            hospitalName: schedule.hospital.hospitalName,
+            doctorName: schedule.doctor?.fullName || 'N/A', // Use 'fullName' instead of 'name'
+            hospitalName: schedule.hospital?.hospitalName || 'N/A',
             patientName: schedule.patientName,
             surgeryType: schedule.surgeryType,
             day: schedule.day,
