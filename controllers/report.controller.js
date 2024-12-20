@@ -1,20 +1,21 @@
 const Report = require('../models/report.model');
-const Hospital = require('../models/hospital.model'); 
-const moment = require('moment');
+const Hospital = require('../models/hospital.model');
+const moment = require('moment-timezone'); 
 
 // Utility function to parse formatted dateTime
 const parseFormattedDateTime = (formattedDateTime) => {
-    // Example input: "1 Dec,2024 9:00 AM - 10:30 AM"
-    const [datePart, timePart] = formattedDateTime.split(' - ')[0].split(' ');
-    const startTime = `${datePart} ${timePart}`;
+    const [startTime, endTime] = formattedDateTime.split(' - ');
+    const parsedStartTime = moment(startTime, 'D MMM,YYYY h:mm A');
+    const parsedEndTime = moment(endTime, 'h:mm A');
 
-    const parsedDate = moment(startTime, 'D MMM,YYYY h:mm A');
-
-    if (!parsedDate.isValid()) {
+    if (!parsedStartTime.isValid() || !parsedEndTime.isValid()) {
         throw new Error('Invalid date format');
     }
 
-    return parsedDate.toDate(); 
+    return {
+        startTime: parsedStartTime.toDate(), 
+        endTime: parsedEndTime.toDate(), 
+    };
 };
 
 // Add a new report
@@ -23,7 +24,7 @@ exports.addReport = async (req, res) => {
         const { hospitalName, surgeryType, patientName, dateTime, payment, paymentStatus } = req.body;
 
         // Parse the formatted dateTime
-        const parsedDateTime = parseFormattedDateTime(dateTime);
+        const { startTime, endTime } = parseFormattedDateTime(dateTime);
 
         // Find the hospital by name
         const hospital = await Hospital.findOne({ hospitalName });
@@ -33,17 +34,18 @@ exports.addReport = async (req, res) => {
 
         // Create a new report
         const newReport = new Report({
-            hospital: hospital._id, // Reference the hospital ObjectId
+            hospital: hospital._id, 
             surgeryType,
             patientName,
-            dateTime: parsedDateTime, // Save as a Date object
+            startTime, 
+            endTime,   
             payment,
             paymentStatus,
         });
 
         await newReport.save();
 
-        // Include hospital name in response
+       
         res.status(201).json({
             message: 'Report added successfully',
             report: {
@@ -51,7 +53,7 @@ exports.addReport = async (req, res) => {
                 hospitalName: hospital.hospitalName,
                 surgeryType: newReport.surgeryType,
                 patientName: newReport.patientName,
-                dateTime, // Return the original formatted dateTime
+                dateTime, 
                 payment: newReport.payment,
                 paymentStatus: newReport.paymentStatus,
             },
@@ -60,17 +62,18 @@ exports.addReport = async (req, res) => {
         res.status(500).json({ message: 'Error adding report', error: error.message });
     }
 };
-
 // Update an existing report
 exports.updateReport = async (req, res) => {
     try {
-        const { reportId } = req.params; 
+        const { reportId } = req.params;
         const { hospitalName, surgeryType, patientName, dateTime, payment, paymentStatus } = req.body;
 
         // Parse the formatted dateTime if provided
-        let parsedDateTime;
+        let parsedStartTime, parsedEndTime;
         if (dateTime) {
-            parsedDateTime = parseFormattedDateTime(dateTime); // Use the existing utility function
+            const { startTime, endTime } = parseFormattedDateTime(dateTime); // Use the updated utility function
+            parsedStartTime = startTime;
+            parsedEndTime = endTime;
         }
 
         // Find the hospital by name
@@ -79,17 +82,25 @@ exports.updateReport = async (req, res) => {
             return res.status(404).json({ message: 'Hospital not found' });
         }
 
+        // Update fields for the report
+        const updateFields = {
+            hospital: hospital._id, // Update hospital reference
+            surgeryType,
+            patientName,
+            payment,
+            paymentStatus,
+        };
+
+        // Only add `startTime` and `endTime` if `dateTime` is provided
+        if (parsedStartTime && parsedEndTime) {
+            updateFields.startTime = parsedStartTime;
+            updateFields.endTime = parsedEndTime;
+        }
+
         // Find and update the report
         const updatedReport = await Report.findByIdAndUpdate(
             reportId,
-            {
-                hospital: hospital._id, // Update hospital reference
-                surgeryType,
-                patientName,
-                dateTime: parsedDateTime || undefined, // Only update if dateTime is provided
-                payment,
-                paymentStatus,
-            },
+            updateFields,
             { new: true } // Return the updated report
         );
 
@@ -97,7 +108,7 @@ exports.updateReport = async (req, res) => {
             return res.status(404).json({ message: 'Report not found' });
         }
 
-        // Return the updated report
+        // Return the updated report with formatted startTime and endTime
         res.status(200).json({
             message: 'Report updated successfully',
             report: {
@@ -105,7 +116,7 @@ exports.updateReport = async (req, res) => {
                 hospitalName: hospital.hospitalName,
                 surgeryType: updatedReport.surgeryType,
                 patientName: updatedReport.patientName,
-                dateTime: moment(updatedReport.dateTime).format('D MMM,YYYY h:mm A'), // Format dateTime
+                dateTime: `${moment(updatedReport.startTime).format('D MMM,YYYY h:mm A')} - ${moment(updatedReport.endTime).format('h:mm A')}`, // Format startTime and endTime
                 payment: updatedReport.payment,
                 paymentStatus: updatedReport.paymentStatus,
             },
@@ -114,6 +125,7 @@ exports.updateReport = async (req, res) => {
         res.status(500).json({ message: 'Error updating report', error: error.message });
     }
 };
+
 
 // Delete a report
 exports.deleteReport = async (req, res) => {
@@ -138,23 +150,26 @@ exports.deleteReport = async (req, res) => {
 exports.fetchAllReports = async (req, res) => {
     try {
         const reports = await Report.find()
-            .populate('hospital', 'hospitalName') // Populate hospitalName from the Hospital collection
+            .populate('hospital', 'hospitalName') 
             .exec();
 
         if (!reports.length) {
             return res.status(404).json({ message: 'No reports found' });
         }
 
-        // Format the reports to include hospital name in response
-        const formattedReports = reports.map(report => ({
-            _id: report._id,
-            hospitalName: report.hospital.hospitalName, // Access populated hospital name
-            surgeryType: report.surgeryType,
-            patientName: report.patientName,
-            dateTime: moment(report.dateTime).format('D MMM,YYYY h:mm A'), 
-            payment: report.payment,
-            paymentStatus: report.paymentStatus,
-        }));
+        const formattedReports = reports.map((report) => {
+            const formattedDateTime = `${moment(report.startTime).format('D MMM,YYYY h:mm A')} - ${moment(report.endTime).format('h:mm A')}`;
+
+            return {
+                _id: report._id,
+                hospitalName: report.hospital.hospitalName,
+                surgeryType: report.surgeryType,
+                patientName: report.patientName,
+                dateTime: formattedDateTime, 
+                payment: report.payment,
+                paymentStatus: report.paymentStatus,
+            };
+        });
 
         res.status(200).json({
             message: 'Reports fetched successfully',
