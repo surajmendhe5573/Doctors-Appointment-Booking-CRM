@@ -426,3 +426,52 @@ exports.getTransferredAppointments = async (req, res) => {
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
+
+// API to retake a transferred appointment (set isTransferred to false)
+exports.retakeTransferredAppointment = async (req, res) => {
+    try {
+        const { scheduleId } = req.params;
+
+        // Find the schedule by ID
+        const schedule = await Schedule.findById(scheduleId);
+        if (!schedule) {
+            return res.status(404).json({ message: 'Schedule not found!' });
+        }
+
+        // Check if the appointment has already been retaken (i.e., isTransferred is false)
+        if (!schedule.isTransferred) {
+            return res.status(400).json({ message: 'This appointment has not been transferred.' });
+        }
+
+        // Reset the isTransferred field to false
+        schedule.isTransferred = false;
+
+        // Save the updated schedule
+        const updatedSchedule = await schedule.save();
+
+        // Populate doctor and hospital fields for the response
+        const populatedSchedule = await Schedule.findById(updatedSchedule._id)
+            .populate('doctor', 'fullName') 
+            .populate('hospital', 'hospitalName');
+
+        const response = {
+            _id: populatedSchedule._id,
+            doctorName: populatedSchedule.doctor?.fullName || 'N/A',
+            hospitalName: populatedSchedule.hospital?.hospitalName || 'N/A',
+            patientName: populatedSchedule.patientName,
+            surgeryType: populatedSchedule.surgeryType,
+            day: populatedSchedule.day,
+            startDateTime: moment(populatedSchedule.startDateTime).format('D MMM, YYYY h:mm A'),
+            endDateTime: moment(populatedSchedule.endDateTime).format('D MMM, YYYY h:mm A'),
+            status: populatedSchedule.status,
+        };
+
+        res.status(200).json({
+            message: 'Appointment retaken successfully',
+            schedules: [response],
+        });
+    } catch (error) {
+        console.error('Error retaking schedule:', error.message);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+};

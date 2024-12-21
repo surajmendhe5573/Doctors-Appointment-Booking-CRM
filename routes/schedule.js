@@ -11,6 +11,7 @@ router.get('/', getAllSchedules)
 router.put("/:scheduleId/status", toggleScheduleStatus);  // Toggle status (Done or Upcoming) / Not Available
 router.put('/:scheduleId', transferAppointment);  // Route for transferring an appointment (update doctor or hospital)
 router.get('/transferred', getTransferredAppointments);  // fetching transferred appointments
+router.put('/retake/:scheduleId', retakeTransferredAppointment);  // retake transferred appointments
 
 
 router.get('/upcoming-status', getUpcomingSchedules);  // Route to fetch all upcoming schedules
