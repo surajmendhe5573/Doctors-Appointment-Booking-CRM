@@ -427,33 +427,63 @@ exports.getTransferredAppointments = async (req, res) => {
     }
 };
 
-// API to retake a transferred appointment (set isTransferred to false)
+// Re-Take Transferred Appointment (Revert to the original or reassign)
 exports.retakeTransferredAppointment = async (req, res) => {
     try {
-        const { scheduleId } = req.params;
+        const { doctorId, hospitalName } = req.body;
+        const { scheduleId } = req.params; 
 
-        // Find the schedule by ID
+        // Initialize an object to hold updates
+        let updates = {};
+
+        // Fetch the existing schedule to check the status
         const schedule = await Schedule.findById(scheduleId);
         if (!schedule) {
             return res.status(404).json({ message: 'Schedule not found!' });
         }
 
-        // Check if the appointment has already been retaken (i.e., isTransferred is false)
         if (!schedule.isTransferred) {
             return res.status(400).json({ message: 'This appointment has not been transferred.' });
         }
 
-        // Reset the isTransferred field to false
-        schedule.isTransferred = false;
+        // If doctorId is provided, validate and update the doctor
+        if (doctorId) {
+            const doctor = await User.findById(doctorId);
+            if (!doctor || doctor.role !== 'Doctor') {
+                return res.status(404).json({ message: 'Doctor not found!' });
+            }
+            updates.doctor = doctorId;
+        }
+
+        // If hospitalName is provided, validate and update the hospital
+        if (hospitalName) {
+            const hospital = await Hospital.findOne({ hospitalName });
+            if (!hospital) {
+                return res.status(404).json({ message: 'Hospital not found!' });
+            }
+            updates.hospital = hospital._id;
+        }
+
+        // If no updates are provided (no doctor or hospital), revert to the original
+        if (!doctorId && !hospitalName) {
+            updates.doctor = schedule.originalDoctor;
+            updates.hospital = schedule.originalHospital;
+        }
+
+        // Update the schedule with the new details
+        schedule.doctor = updates.doctor || schedule.doctor;
+        schedule.hospital = updates.hospital || schedule.hospital;
+        schedule.isTransferred = false; // Mark as no longer transferred
 
         // Save the updated schedule
         const updatedSchedule = await schedule.save();
 
         // Populate doctor and hospital fields for the response
         const populatedSchedule = await Schedule.findById(updatedSchedule._id)
-            .populate('doctor', 'fullName') 
+            .populate('doctor', 'fullName')
             .populate('hospital', 'hospitalName');
 
+        // Format the response with formatted date/times
         const response = {
             _id: populatedSchedule._id,
             doctorName: populatedSchedule.doctor?.fullName || 'N/A',
@@ -467,11 +497,11 @@ exports.retakeTransferredAppointment = async (req, res) => {
         };
 
         res.status(200).json({
-            message: 'Appointment retaken successfully',
+            message: 'Appointment re-taken successfully',
             schedules: [response],
         });
     } catch (error) {
-        console.error('Error retaking schedule:', error.message);
+        console.error('Error re-taking transferred appointment:', error.message);
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
