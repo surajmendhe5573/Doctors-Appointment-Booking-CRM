@@ -263,7 +263,7 @@ exports.transferAppointment = async (req, res) => {
 
         let updates = {};
 
-        // Update doctor if provided
+        
         if (doctorId) {
             const doctor = await User.findById(doctorId);
             if (!doctor || doctor.role !== 'Doctor') {
@@ -272,7 +272,6 @@ exports.transferAppointment = async (req, res) => {
             updates.doctor = doctorId;
         }
 
-        // Update hospital if provided
         if (hospitalName) {
             const hospital = await Hospital.findOne({ hospitalName });
             if (!hospital) {
@@ -281,7 +280,7 @@ exports.transferAppointment = async (req, res) => {
             updates.hospital = hospital._id;
         }
 
-        const { scheduleId } = req.params; // Extract scheduleId from the URL parameter
+        const { scheduleId } = req.params; 
 
         // Find the existing schedule by ID
         const schedule = await Schedule.findById(scheduleId);
@@ -292,6 +291,7 @@ exports.transferAppointment = async (req, res) => {
         // Update the schedule with the new doctor or hospital
         schedule.doctor = updates.doctor || schedule.doctor;
         schedule.hospital = updates.hospital || schedule.hospital;
+        schedule.isTransferred = true; // Mark as transferred
 
         // Save the updated schedule
         const updatedSchedule = await schedule.save();
@@ -387,6 +387,42 @@ exports.getDoneSchedules = async (req, res) => {
         });
     } catch (error) {
         console.error('Error retrieving done schedules:', error.message);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+};
+
+// Retrieve transferred appointments (appointments that have been transferred)
+exports.getTransferredAppointments = async (req, res) => {
+    try {
+        // Fetch schedules that have been transferred (isTransferred = true)
+        const transferredSchedules = await Schedule.find({ isTransferred: true })
+            .populate('doctor', 'fullName') // Populate doctor's full name
+            .populate('hospital', 'hospitalName'); // Populate hospital's name
+
+        // If no transferred schedules found
+        if (transferredSchedules.length === 0) {
+            return res.status(404).json({ message: 'No transferred appointments found.' });
+        }
+
+        // Format the schedules response
+        const formattedSchedules = transferredSchedules.map(schedule => ({
+            _id: schedule._id,
+            doctorName: schedule.doctor?.fullName || 'N/A',
+            hospitalName: schedule.hospital?.hospitalName || 'N/A',
+            patientName: schedule.patientName,
+            surgeryType: schedule.surgeryType,
+            day: schedule.day,
+            startDateTime: moment(schedule.startDateTime).format('D MMM, YYYY h:mm A'),
+            endDateTime: moment(schedule.endDateTime).format('D MMM, YYYY h:mm A'),
+            status: schedule.status,
+        }));
+
+        res.status(200).json({
+            message: 'Transferred appointments fetched successfully',
+            schedules: formattedSchedules,
+        });
+    } catch (error) {
+        console.error('Error fetching transferred appointments:', error.message);
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
