@@ -179,3 +179,57 @@ exports.fetchAllReports = async (req, res) => {
         res.status(500).json({ message: 'Error fetching reports', error: error.message });
     }
 };
+
+// Fetch reports by date range
+exports.fetchReportsByDateRange = async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ message: 'Start date and end date are required' });
+        }
+
+        // Parse the input dates
+        const parsedStartDate = moment(startDate, 'YYYY-MM-DD').startOf('day');
+        const parsedEndDate = moment(endDate, 'YYYY-MM-DD').endOf('day');
+
+        if (!parsedStartDate.isValid() || !parsedEndDate.isValid()) {
+            return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD' });
+        }
+
+        // Query to fetch reports within the date range
+        const reports = await Report.find({
+            startTime: {
+                $gte: parsedStartDate.toDate(),
+                $lte: parsedEndDate.toDate(),
+            },
+        })
+            .populate('hospital', 'hospitalName') // Populate hospital name
+            .exec();
+
+        if (!reports.length) {
+            return res.status(404).json({ message: 'No reports found within the specified date range' });
+        }
+
+        // Format the reports
+        const formattedReports = reports.map((report) => {
+            const formattedDateTime = `${moment(report.startTime).format('D MMM,YYYY h:mm A')} - ${moment(report.endTime).format('h:mm A')}`;
+            return {
+                _id: report._id,
+                hospitalName: report.hospital.hospitalName,
+                surgeryType: report.surgeryType,
+                patientName: report.patientName,
+                dateTime: formattedDateTime, // Formatted dateTime
+                payment: report.payment,
+                paymentStatus: report.paymentStatus,
+            };
+        });
+
+        res.status(200).json({
+            message: 'Reports fetched successfully',
+            reports: formattedReports,
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching reports by date range', error: error.message });
+    }
+};

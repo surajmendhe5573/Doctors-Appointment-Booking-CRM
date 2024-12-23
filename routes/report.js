@@ -8,4 +8,6 @@ router.put('/update/:reportId', reportController.updateReport);  // update repor
 router.delete('/delete/:reportId', reportController.deleteReport);  // delete report 
 router.get('/', reportController.fetchAllReports);  // fetch all reports
 
+router.get('/date-range', reportController.fetchReportsByDateRange)  // fetch reports date wise
+
 module.exports = router;
