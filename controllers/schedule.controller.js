@@ -505,3 +505,59 @@ exports.retakeTransferredAppointment = async (req, res) => {
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
+
+// Fetch Schedules within a date range
+exports.getSchedulesByDateRange = async (req, res) => {
+    try {
+        // Extract start and end dates from query parameters
+        const { startDate, endDate } = req.query;
+
+        // Validate the start and end dates
+        if (!startDate || !endDate) {
+            return res.status(400).json({ message: 'Start date and End date are required.' });
+        }
+
+        // Parse the provided startDate and endDate using moment.js in 'YYYY-MM-DD' format
+        const start = moment(startDate, 'YYYY-MM-DD');
+        const end = moment(endDate, 'YYYY-MM-DD');
+
+        // Check if the parsed dates are valid
+        if (!start.isValid() || !end.isValid()) {
+            return res.status(400).json({ message: 'Invalid date format. Use "YYYY-MM-DD" format.' });
+        }
+
+        // Fetch schedules that fall within the start and end date range
+        const schedules = await Schedule.find({
+            startDateTime: { $gte: start.toDate() }, // Greater than or equal to start date
+            endDateTime: { $lte: end.toDate() } // Less than or equal to end date
+        })
+            .populate('doctor', 'fullName') // Populate doctor's full name
+            .populate('hospital', 'hospitalName'); // Populate hospital's name
+
+        // If no schedules found within the range
+        if (schedules.length === 0) {
+            return res.status(404).json({ message: 'No schedules found within the specified date range.' });
+        }
+
+        // Format the schedules response
+        const formattedSchedules = schedules.map(schedule => ({
+            _id: schedule._id,
+            doctorName: schedule.doctor?.fullName || 'N/A',
+            hospitalName: schedule.hospital?.hospitalName || 'N/A',
+            patientName: schedule.patientName,
+            surgeryType: schedule.surgeryType,
+            day: schedule.day,
+            startDateTime: moment(schedule.startDateTime).format('D MMM, YYYY h:mm A'),
+            endDateTime: moment(schedule.endDateTime).format('D MMM, YYYY h:mm A'),
+            status: schedule.status,
+        }));
+
+        res.status(200).json({
+            message: 'Schedules fetched successfully',
+            schedules: formattedSchedules,
+        });
+    } catch (error) {
+        console.error('Error fetching schedules by date range:', error.message);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+};
