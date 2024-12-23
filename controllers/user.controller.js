@@ -26,9 +26,17 @@ const login = async (req, res) => {
             return res.status(500).json({ message: 'Server configuration error' });
         }
 
-        // Generate tokens
-        const accessToken = jwt.sign({ id: userExist._id }, process.env.JWT_SECRET, { expiresIn: '30m' });
-        const refreshToken = jwt.sign({ id: userExist._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+        // Generate tokens with role included in the payload
+        const accessToken = jwt.sign(
+            { id: userExist._id, role: userExist.role }, // Add role to token payload
+            process.env.JWT_SECRET, 
+            { expiresIn: '30m' }
+        );
+        const refreshToken = jwt.sign(
+            { id: userExist._id, role: userExist.role }, // Add role to refresh token as well
+            process.env.JWT_REFRESH_SECRET, 
+            { expiresIn: '7d' }
+        );
 
         // Save refreshToken to the database without full validation
         await User.updateOne({ _id: userExist._id }, { refreshToken });
@@ -49,6 +57,7 @@ const login = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
 
 // Refresh Token Endpoint
 const refreshAccessToken = async (req, res) => {

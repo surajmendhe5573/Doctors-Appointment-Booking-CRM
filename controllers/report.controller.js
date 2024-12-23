@@ -1,6 +1,6 @@
 const Report = require('../models/report.model');
 const Hospital = require('../models/hospital.model');
-const moment = require('moment-timezone'); 
+const moment = require('moment-timezone');
 
 // Utility function to parse formatted dateTime
 const parseFormattedDateTime = (formattedDateTime) => {
@@ -13,14 +13,19 @@ const parseFormattedDateTime = (formattedDateTime) => {
     }
 
     return {
-        startTime: parsedStartTime.toDate(), 
-        endTime: parsedEndTime.toDate(), 
+        startTime: parsedStartTime.toDate(),
+        endTime: parsedEndTime.toDate(),
     };
 };
 
 // Add a new report
 exports.addReport = async (req, res) => {
     try {
+        // Check if the user has the role 'Doctor'
+        if (req.user.role !== 'Doctor') {
+            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+        }
+
         const { hospitalName, surgeryType, patientName, dateTime, payment, paymentStatus } = req.body;
 
         // Parse the formatted dateTime
@@ -34,18 +39,17 @@ exports.addReport = async (req, res) => {
 
         // Create a new report
         const newReport = new Report({
-            hospital: hospital._id, 
+            hospital: hospital._id,
             surgeryType,
             patientName,
-            startTime, 
-            endTime,   
+            startTime,
+            endTime,
             payment,
             paymentStatus,
         });
 
         await newReport.save();
 
-       
         res.status(201).json({
             message: 'Report added successfully',
             report: {
@@ -53,7 +57,7 @@ exports.addReport = async (req, res) => {
                 hospitalName: hospital.hospitalName,
                 surgeryType: newReport.surgeryType,
                 patientName: newReport.patientName,
-                dateTime, 
+                dateTime,
                 payment: newReport.payment,
                 paymentStatus: newReport.paymentStatus,
             },
@@ -62,6 +66,7 @@ exports.addReport = async (req, res) => {
         res.status(500).json({ message: 'Error adding report', error: error.message });
     }
 };
+
 // Update an existing report
 exports.updateReport = async (req, res) => {
     try {
