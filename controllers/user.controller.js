@@ -208,7 +208,6 @@ const deleteUser = async (req, res) => {
 // Retrieve all users
 const getAllUsers = async (req, res) => {
     try {
-        // Fetch all users from the database
         const users = await User.find({}, '-password');
 
         // Check if users exist
@@ -235,7 +234,7 @@ const forgetPassword = async (req, res) => {
         const user = await User.findOne({ emailId });
 
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ message: 'User not found.' });
         }
 
         // Generate a reset token
@@ -264,7 +263,6 @@ const forgetPassword = async (req, res) => {
             text: `You requested a password reset. Use the following token to reset your password: ${resetToken}\n\nThis token is valid for 1 hour.`
         };
 
-        // Send email
         await transporter.sendMail(mailOptions);
 
         res.status(200).json({ message: 'Password reset token sent to your email' });
@@ -305,8 +303,6 @@ const resetPassword = async (req, res) => {
         return res.status(500).json({ message: 'Internal server error' });
     }
 };
-
-
 
 module.exports = {
     addUser,
