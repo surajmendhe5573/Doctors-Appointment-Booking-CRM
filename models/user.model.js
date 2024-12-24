@@ -30,16 +30,16 @@ const userSchema = new mongoose.Schema({
     refreshToken: { 
         type: String,
         default: null
+    },
+    resetToken: { 
+        type: String,
+        default: null
+    },
+    resetTokenExpiration: { 
+        type: Date,
+        default: null
     }
 });
 
-// Hash the password before saving the user
-// userSchema.pre('save', async function (next) {
-//     if (this.isModified('password')) {
-//         const bcrypt = require('bcrypt');
-//         this.password = await bcrypt.hash(this.password, 10);
-//     }
-//     next();
-// });
 
 module.exports = new mongoose.model('User', userSchema);

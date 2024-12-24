@@ -23,7 +23,7 @@ const authenticateToken = (req, res, next) => {
 
         next();
     } catch (error) {
-        return res.status(400).json({ message: 'Invalid token', error: error.message });
+        return res.status(403).json({ message: 'Invalid token', error: error.message });
     }
 };
 
