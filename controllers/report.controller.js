@@ -22,9 +22,9 @@ const parseFormattedDateTime = (formattedDateTime) => {
 exports.addReport = async (req, res) => {
     try {
         // Check if the user has the role 'Doctor'
-        if (req.user.role !== 'Doctor') {
-            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-        }
+        // if (req.user.role !== 'Doctor') {
+        //     return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+        // }
 
         const { hospitalName, surgeryType, patientName, dateTime, payment, paymentStatus } = req.body;
 
@@ -71,9 +71,9 @@ exports.addReport = async (req, res) => {
 exports.updateReport = async (req, res) => {
     try {
 
-        if (req.user.role !== 'Doctor') {
-            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-        }
+        // if (req.user.role !== 'Doctor') {
+        //     return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+        // }
         
         const { reportId } = req.params;
         const { hospitalName, surgeryType, patientName, dateTime, payment, paymentStatus } = req.body;
@@ -141,9 +141,9 @@ exports.updateReport = async (req, res) => {
 exports.deleteReport = async (req, res) => {
     try {
 
-        if (req.user.role !== 'Doctor') {
-            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-        }
+        // if (req.user.role !== 'Doctor') {
+        //     return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+        // }
 
         const { reportId } = req.params; 
 
@@ -165,9 +165,9 @@ exports.deleteReport = async (req, res) => {
 exports.fetchAllReports = async (req, res) => {
     try {
          // Check if the user has the role 'Doctor'
-         if (req.user.role !== 'Doctor') {
-            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-        }
+        //  if (req.user.role !== 'Doctor') {
+        //     return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+        // }
 
         const reports = await Report.find()
             .populate('hospital', 'hospitalName') 
@@ -204,9 +204,9 @@ exports.fetchAllReports = async (req, res) => {
 exports.fetchReportsByDateRange = async (req, res) => {
     try {
         // Check if the user has the role 'Doctor'
-        if (req.user.role !== 'Doctor') {
-            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-        }
+        // if (req.user.role !== 'Doctor') {
+        //     return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+        // }
         const { startDate, endDate } = req.query;
 
         if (!startDate || !endDate) {

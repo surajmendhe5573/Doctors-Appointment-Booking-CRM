@@ -5,11 +5,6 @@ const Hospital = require('../models/hospital.model');
 const addHospital = async (req, res) => {
     try {
 
-          // Check if the user has the role 'Doctor'
-          if (req.user.role !== 'Doctor') {
-            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-        }
-
         const { hospitalName, hospitalEmailId, hospitalPhoneNo, adminFullName, adminPhoneNo } = req.body;
         
         if (!hospitalName || !hospitalEmailId || !hospitalPhoneNo || !adminFullName || !adminPhoneNo) {
@@ -43,10 +38,10 @@ const addHospital = async (req, res) => {
 const updateHospital = async (req, res) => {
     try {
 
-        // Check if the user has the role 'Doctor'
-        if (req.user.role !== 'Doctor') {
-            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-        }
+        // // Check if the user has the role 'Doctor'
+        // if (req.user.role !== 'Doctor') {
+        //     return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+        // }
 
         const { id } = req.params;
         const { hospitalName, hospitalEmailId, hospitalPhoneNo, adminFullName, adminPhoneNo } = req.body;
@@ -84,10 +79,10 @@ const deleteHospital = async (req, res) => {
   try {
 
     
-     // Check if the user has the role 'Doctor'
-    if (req.user.role !== 'Doctor') {
-            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-    }
+    //  // Check if the user has the role 'Doctor'
+    // if (req.user.role !== 'Doctor') {
+    //         return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+    // }
 
       const { id } = req.params; // Hospital ID from the URL
 
@@ -109,10 +104,10 @@ const deleteHospital = async (req, res) => {
 const getAllHospitals = async (req, res) => {
   try {
 
-         // Check if the user has the role 'Doctor'
-         if (req.user.role !== 'Doctor') {
-            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-    }
+    //      // Check if the user has the role 'Doctor'
+    //      if (req.user.role !== 'Doctor') {
+    //         return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+    // }
     
       // Retrieve all hospitals from the database
       const hospitals = await Hospital.find();
