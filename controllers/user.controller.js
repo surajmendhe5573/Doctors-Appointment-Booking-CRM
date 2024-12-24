@@ -223,6 +223,7 @@ const getAllUsers = async (req, res) => {
     }
 };
 
+// forget password
 const forgetPassword = async (req, res) => {
     try {
         const { emailId } = req.body;
@@ -246,8 +247,27 @@ const forgetPassword = async (req, res) => {
         user.resetTokenExpiration = resetTokenExpiration;
         await user.save();
 
-        // Return the reset token for use in testing or future API calls
-        res.status(200).json({ message: 'Password reset token generated successfully', resetToken });
+        // Configure nodemailer
+        const transporter = nodemailer.createTransport({
+            service: 'gmail', // Replace with your email service provider
+            auth: {
+                user: process.env.EMAIL, // Your email address
+                pass: process.env.EMAIL_PASSWORD // Your email password or app-specific password
+            }
+        });
+
+        // Email content
+        const mailOptions = {
+            from: process.env.EMAIL,
+            to: emailId,
+            subject: 'Password Reset Request',
+            text: `You requested a password reset. Use the following token to reset your password: ${resetToken}\n\nThis token is valid for 1 hour.`
+        };
+
+        // Send email
+        await transporter.sendMail(mailOptions);
+
+        res.status(200).json({ message: 'Password reset token sent to your email' });
 
     } catch (error) {
         console.error(error);
@@ -255,6 +275,7 @@ const forgetPassword = async (req, res) => {
     }
 };
 
+// reset password
 const resetPassword = async (req, res) => {
     try {
         const { resetToken, newPassword } = req.body;
