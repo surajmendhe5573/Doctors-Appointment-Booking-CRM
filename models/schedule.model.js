@@ -33,7 +33,29 @@ const scheduleSchema = new mongoose.Schema(
       required: true,
     },
     status: { type: String, enum:['Upcoming', 'Done', 'Not Available'], default: 'Upcoming' },
-    isTransferred: { type: Boolean, default: false },  
+    isTransferred: { type: Boolean, default: false }, 
+
+    paymentAmount: {
+      type: Number,
+      required: true
+    },
+    paymentStatus: {
+      type: String, enum: ['Pending', 'Done'], default: 'Pending',
+      required: true
+    },
+    amountReceived:{
+      type: Number,
+      // required: true
+    },
+    paymentMethod:{
+      type: String,
+      // required: true
+    },
+    documentProofNo: {
+      type: String,
+      // required: true
+    }
+
   },
   {
     timestamps: true, 

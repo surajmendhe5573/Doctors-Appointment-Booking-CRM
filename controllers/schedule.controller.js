@@ -5,7 +5,7 @@ const moment = require('moment');
 
 exports.createSchedule = async (req, res) => {
     try {
-        const { doctorId, hospitalName, patientName, surgeryType, startDateTime, endDateTime, day } = req.body;
+        const { doctorId, hospitalName, patientName, surgeryType, startDateTime, endDateTime, day, paymentAmount, paymentStatus } = req.body;
 
         // Validate the start and end date/times
         if (!startDateTime || !endDateTime) {
@@ -55,6 +55,8 @@ exports.createSchedule = async (req, res) => {
             startDateTime: startDate,
             endDateTime: endDate,
             status: 'Upcoming', // Default status
+            paymentAmount,
+            paymentStatus
         });
 
         // Save the schedule
@@ -76,6 +78,8 @@ exports.createSchedule = async (req, res) => {
             startDateTime: moment(populatedSchedule.startDateTime).format('D MMM, YYYY h:mm A'), // Format date
             endDateTime: moment(populatedSchedule.endDateTime).format('D MMM, YYYY h:mm A'), // Format date
             status: populatedSchedule.status,
+            paymentAmount: populatedSchedule.paymentAmount,
+            paymentStatus: populatedSchedule.paymentStatus,
         };
 
         res.status(201).json({
@@ -223,6 +227,8 @@ exports.getAllSchedules = async (req, res) => {
             startDateTime: moment(schedule.startDateTime).format('D MMM, YYYY h:mm A'),
             endDateTime: moment(schedule.endDateTime).format('D MMM, YYYY h:mm A'),
             status: schedule.status,
+            paymentAmount: schedule.paymentAmount,
+            paymentStatus: schedule.paymentStatus,
         }));
 
         res.status(200).json({
@@ -615,6 +621,76 @@ exports.getTransferredAppointmentsByDateRange = async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching transferred appointments:', error.message);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+};
+
+
+// update payment details
+exports.updatePaymentDetails = async (req, res) => {
+    try {
+        const { scheduleId } = req.params;
+        const { amountReceived, paymentMethod, documentProofNo } = req.body;
+
+        // Validate the inputs
+        if (!amountReceived || !paymentMethod || !documentProofNo) {
+            return res.status(400).json({ 
+                message: 'Amount received, payment method, and document proof number are required.' 
+            });
+        }
+
+        // Ensure amountReceived is a valid number
+        const amountReceivedNum = Number(amountReceived);
+        if (isNaN(amountReceivedNum) || amountReceivedNum <= 0) {
+            return res.status(400).json({ message: 'Invalid amount received. Must be a positive number.' });
+        }
+
+        // Find the schedule by ID
+        const schedule = await Schedule.findById(scheduleId);
+        if (!schedule) {
+            return res.status(404).json({ message: 'Schedule not found!' });
+        }
+
+        // Calculate the new amount received
+        const newAmountReceived = (schedule.amountReceived || 0) + amountReceivedNum; // Safe increment
+        schedule.amountReceived = newAmountReceived; // Update the amountReceived field
+
+        // Update the other fields
+        schedule.paymentMethod = paymentMethod;
+        schedule.documentProofNo = documentProofNo;
+
+        // Calculate the due amount
+        const dueAmount = schedule.paymentAmount - newAmountReceived;
+
+        // Update paymentStatus based on the due amount
+        if (dueAmount <= 0) {
+            schedule.paymentStatus = 'Done';
+        } else {
+            schedule.paymentStatus = 'Pending';
+        }
+
+        // Save the updated schedule
+        const updatedSchedule = await schedule.save();
+
+        // Format the response
+        const response = {
+            _id: updatedSchedule._id,
+            patientName: updatedSchedule.patientName,
+            surgeryType: updatedSchedule.surgeryType,
+            paymentAmount: updatedSchedule.paymentAmount,
+            amountReceived: updatedSchedule.amountReceived,
+            dueAmount: dueAmount > 0 ? dueAmount : 0, // Ensure due amount is not negative
+            paymentMethod: updatedSchedule.paymentMethod,
+            documentProofNo: updatedSchedule.documentProofNo,
+            paymentStatus: updatedSchedule.paymentStatus,
+        };
+
+        res.status(200).json({
+            message: 'Payment details updated successfully',
+            schedule: response,
+        });
+    } catch (error) {
+        console.error('Error updating payment details:', error.message);
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
