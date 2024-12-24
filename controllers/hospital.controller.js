@@ -1,8 +1,15 @@
 const Hospital = require('../models/hospital.model'); 
 
+
 // Add a new hospital
 const addHospital = async (req, res) => {
     try {
+
+          // Check if the user has the role 'Doctor'
+          if (req.user.role !== 'Doctor') {
+            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+        }
+
         const { hospitalName, hospitalEmailId, hospitalPhoneNo, adminFullName, adminPhoneNo } = req.body;
         
         if (!hospitalName || !hospitalEmailId || !hospitalPhoneNo || !adminFullName || !adminPhoneNo) {
@@ -35,6 +42,12 @@ const addHospital = async (req, res) => {
 // Update an existing hospital
 const updateHospital = async (req, res) => {
     try {
+
+        // Check if the user has the role 'Doctor'
+        if (req.user.role !== 'Doctor') {
+            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+        }
+
         const { id } = req.params;
         const { hospitalName, hospitalEmailId, hospitalPhoneNo, adminFullName, adminPhoneNo } = req.body;
 
@@ -69,6 +82,13 @@ const updateHospital = async (req, res) => {
 // Delete a hospital
 const deleteHospital = async (req, res) => {
   try {
+
+    
+     // Check if the user has the role 'Doctor'
+    if (req.user.role !== 'Doctor') {
+            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+    }
+
       const { id } = req.params; // Hospital ID from the URL
 
       // Find and delete the hospital by ID
@@ -88,6 +108,12 @@ const deleteHospital = async (req, res) => {
 // Fetch all hospitals
 const getAllHospitals = async (req, res) => {
   try {
+
+         // Check if the user has the role 'Doctor'
+         if (req.user.role !== 'Doctor') {
+            return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+    }
+    
       // Retrieve all hospitals from the database
       const hospitals = await Hospital.find();
 
