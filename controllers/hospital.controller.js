@@ -1,5 +1,5 @@
 const Hospital = require('../models/hospital.model'); 
-
+const ExcelJS= require('exceljs');
 
 // Add a new hospital
 const addHospital = async (req, res) => {
@@ -124,9 +124,65 @@ const getAllHospitals = async (req, res) => {
 };
 
 
+const exportHospitalsToExcel = async (req, res) => {
+    try {
+        // Fetch all hospitals
+        const hospitals = await Hospital.find();
+
+        if (!hospitals.length) {
+            return res.status(404).json({ message: 'No hospitals found to export.' });
+        }
+
+        // Create a new workbook and worksheet
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Hospitals');
+
+        // Define columns for the worksheet
+        worksheet.columns = [
+            { header: 'Hospital Name', key: 'hospitalName', width: 30 },
+            { header: 'Hospital Email ID', key: 'hospitalEmailId', width: 30 },
+            { header: 'Hospital Phone No', key: 'hospitalPhoneNo', width: 20 },
+            { header: 'Admin Full Name', key: 'adminFullName', width: 20 },
+            { header: 'Admin Phone No', key: 'adminPhoneNo', width: 20 },
+            { header: 'Created At', key: 'createdAt', width: 25 },
+        ];
+
+        // Add rows to the worksheet
+        hospitals.forEach((hospital) => {
+            worksheet.addRow({
+                hospitalName: hospital.hospitalName,
+                hospitalEmailId: hospital.hospitalEmailId,
+                hospitalPhoneNo: hospital.hospitalPhoneNo,
+                adminFullName: hospital.adminFullName,
+                adminPhoneNo: hospital.adminPhoneNo,
+                createdAt: hospital.createdAt ? hospital.createdAt.toISOString() : 'N/A',
+            });
+        });
+
+        // Format the header row
+        worksheet.getRow(1).font = { bold: true };
+
+        // Write workbook to a buffer and send it as a response
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader('Content-Disposition', 'attachment; filename=hospitals.xlsx');
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'An error occurred while exporting data.', error: error.message });
+    }
+};
+
+
+
 module.exports = {
     addHospital,
     updateHospital,
     deleteHospital,
-    getAllHospitals
+    getAllHospitals,
+    exportHospitalsToExcel
 };
