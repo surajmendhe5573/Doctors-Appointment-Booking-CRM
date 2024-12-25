@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const ExcelJS = require('exceljs');
 require('dotenv').config();
 
 const login = async (req, res) => {
@@ -314,6 +315,59 @@ const resetPassword = async (req, res) => {
     }
 };
 
+
+const exportUsersToExcel = async (req, res) => {
+    try {
+        const users = await User.find({}, '-password'); // Exclude passwords for security
+
+        if (!users.length) {
+            return res.status(404).json({ message: 'No users found.' });
+        }
+
+        // Create a new Excel workbook and worksheet
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Users');
+
+        // Define the headers for the worksheet
+        worksheet.columns = [
+            { header: 'Full Name', key: 'fullName', width: 20 },
+            { header: 'Email ID', key: 'emailId', width: 30 },
+            { header: 'Phone No', key: 'phoneNo', width: 15 },
+            { header: 'Address', key: 'address', width: 30 },
+            { header: 'Role', key: 'role', width: 15 }
+        ];
+
+        // Add user data to the worksheet
+        users.forEach(user => {
+            worksheet.addRow({
+                fullName: user.fullName,
+                emailId: user.emailId,
+                phoneNo: user.phoneNo,
+                address: user.address,
+                role: user.role
+            });
+        });
+
+        // Set headers for the response
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+            'Content-Disposition',
+            'attachment; filename=users.xlsx'
+        );
+
+        // Write the workbook to the response
+        await workbook.xlsx.write(res);
+        res.status(200).end();
+    } catch (error) {
+        console.error('Error exporting users to Excel:', error.message);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+
 module.exports = {
     addUser,
     updateUser,
@@ -323,5 +377,6 @@ module.exports = {
     refreshAccessToken,
     logout,
     forgetPassword,
-    resetPassword
+    resetPassword,
+    exportUsersToExcel
 };
