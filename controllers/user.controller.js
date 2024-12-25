@@ -417,6 +417,50 @@ const exportUsersToExcel = async (req, res) => {
     }
 };
 
+const inviteUser = async (req, res) => {
+    try {
+        const { fullName, emailId, role } = req.body;
+
+        if (!fullName || !emailId || !role) {
+            return res.status(400).json({ message: 'Full Name, Email ID, and Role are required.' });
+        }
+
+        const userExist = await User.findOne({ emailId });
+
+        if (userExist) {
+            return res.status(409).json({ message: 'User with this email already exists.' });
+        }
+
+        // Create the invite email content
+        const mailOptions = {
+            from: process.env.EMAIL,  // Your email address
+            to: emailId,
+            subject: 'You Are Invited to Work on Doctor CRM',
+            text: `Hello ${fullName},\n\nYou are invited to work on the Doctor CRM system. Please follow the instructions to register and get started.\n\nBest Regards,\nThe Doctor CRM Team`
+        };
+
+        // Configure nodemailer transporter
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL, // Your email address
+                pass: process.env.EMAIL_PASSWORD // Your email password or app-specific password
+            }
+        });
+
+        // Send the invitation email
+        await transporter.sendMail(mailOptions);
+
+        // Optionally, you could also add the user to the database with a pending status or just send the invite
+        res.status(200).json({
+            message: `An invitation has been sent to ${fullName} at ${emailId}.`
+        });
+
+    } catch (error) {
+        console.error('Error inviting user:', error.message);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
 
 module.exports = {
     addUser,
@@ -428,5 +472,6 @@ module.exports = {
     logout,
     forgetPassword,
     resetPassword,
-    exportUsersToExcel
+    exportUsersToExcel,
+    inviteUser
 };
