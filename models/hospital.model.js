@@ -22,6 +22,10 @@ const hospitalSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    totalSchedulePayment: {
+        type: Number,
+        default: 0, // Default value is 0
+    },
 }, { timestamps: true }); 
 
 module.exports = mongoose.model('Hospital', hospitalSchema);

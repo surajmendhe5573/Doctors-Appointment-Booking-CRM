@@ -6,7 +6,7 @@ const authenticateToken= require('../middleware/auth.middleware');
 router.post('/add', authenticateToken, addHospital);
 router.put('/update/:id', authenticateToken, updateHospital);
 router.delete('/delete/:id', authenticateToken, deleteHospital);
-router.get('/', authenticateToken, getAllHospitals);
+router.get('/',authenticateToken,  getAllHospitals);
 
 router.get('/export', exportHospitalsToExcel);  // exporting hospitals to excel
 

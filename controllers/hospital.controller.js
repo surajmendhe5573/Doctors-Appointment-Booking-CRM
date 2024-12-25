@@ -100,28 +100,28 @@ const deleteHospital = async (req, res) => {
   }
 };
 
-// Fetch all hospitals
-const getAllHospitals = async (req, res) => {
-  try {
+// // Fetch all hospitals
+// const getAllHospitals = async (req, res) => {
+//   try {
 
-    //      // Check if the user has the role 'Doctor'
-    //      if (req.user.role !== 'Doctor') {
-    //         return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-    // }
+//     //      // Check if the user has the role 'Doctor'
+//     //      if (req.user.role !== 'Doctor') {
+//     //         return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+//     // }
     
-      // Retrieve all hospitals from the database
-      const hospitals = await Hospital.find();
+//       // Retrieve all hospitals from the database
+//       const hospitals = await Hospital.find();
 
-      if (!hospitals.length) {
-          return res.status(404).json({ message: 'No hospitals found.' });
-      }
+//       if (!hospitals.length) {
+//           return res.status(404).json({ message: 'No hospitals found.' });
+//       }
 
-      return res.status(200).json({ message: 'Hospitals retrieved successfully.', hospitals });
-  } catch (error) {
-      console.log(error);
-      return res.status(500).json({ message: 'An error occurred.', error: error.message });
-  }
-};
+//       return res.status(200).json({ message: 'Hospitals retrieved successfully.', hospitals });
+//   } catch (error) {
+//       console.log(error);
+//       return res.status(500).json({ message: 'An error occurred.', error: error.message });
+//   }
+// };
 
 
 const exportHospitalsToExcel = async (req, res) => {
@@ -177,12 +177,50 @@ const exportHospitalsToExcel = async (req, res) => {
     }
 };
 
+// Fetch all hospitals with total payment amount
+const getAllHospitals = async (req, res) => {
+    try {
+        // Fetch all hospitals with the total payment amount of their schedules
+        const hospitals = await Hospital.aggregate([
+            {
+                $lookup: {
+                    from: 'schedules', // Name of the Schedule collection in MongoDB
+                    localField: '_id',
+                    foreignField: 'hospital',
+                    as: 'schedules',
+                },
+            },
+            {
+                $addFields: {
+                    totalSchedulePayment: { $sum: '$schedules.paymentAmount' },
+                },
+            },
+            {
+                $project: {
+                    schedules: 0, // Exclude schedules array from the result
+                },
+            },
+        ]);
 
+        if (!hospitals.length) {
+            return res.status(404).json({ message: 'No hospitals found.' });
+        }
+
+        return res.status(200).json({ message: 'Hospitals retrieved successfully.', hospitals });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'An error occurred.', error: error.message });
+    }
+};
+
+module.exports = {
+    getAllHospitals,
+};
 
 module.exports = {
     addHospital,
     updateHospital,
     deleteHospital,
     getAllHospitals,
-    exportHospitalsToExcel
+    exportHospitalsToExcel,
 };
