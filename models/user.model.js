@@ -27,6 +27,10 @@ const userSchema = new mongoose.Schema({
         required: true,
         enum: ['Doctor', 'Manager', 'CA', 'Admin', 'Secondary Admin'],
     },
+    photo: {  
+        type: String,  // This can store the file path or URL to the photo
+        default: null
+    },
     refreshToken: { 
         type: String,
         default: null

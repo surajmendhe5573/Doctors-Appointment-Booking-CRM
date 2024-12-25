@@ -4,7 +4,9 @@ const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const ExcelJS = require('exceljs');
+const upload= require('../utils/upload');
 require('dotenv').config();
+
 
 const login = async (req, res) => {
     try {
@@ -52,7 +54,8 @@ const login = async (req, res) => {
             user: {
                 fullName: userExist.fullName,
                 emailId: userExist.emailId,
-                role: userExist.role
+                role: userExist.role,
+                photo: userExist.photo  // Send photo along with other user details
             }
         });
     } catch (error) {
@@ -125,33 +128,80 @@ const logout = async (req, res) => {
 
 
 
+// const addUser = async (req, res) => {
+//     try {
+//         const { fullName, emailId, password, phoneNo, address, role } = req.body;
+//         const userExist= await User.findOne({emailId});
+
+//         if(userExist){
+//             return res.status(409).json({ message: 'Email already exists.' });
+//         }
+
+//         if (!fullName || !emailId || !phoneNo || !address || !role) {
+//             return res.status(400).json({ message: 'All fields are required.' });
+//         }
+
+//         const hashedPassword= await bcrypt.hash(password, 10);
+
+//         const newUser = new User({
+//             fullName,
+//             emailId,
+//             password: hashedPassword,
+//             phoneNo,
+//             address,
+//             role,
+//         });
+
+//         await newUser.save();
+
+//         return res.status(201).json({ message: 'User added successfully.', user: {fullName, emailId, phoneNo, address, role} });
+//     } catch (error) {
+//         console.log(error);
+//         return res.status(500).json({ message: 'An error occurred.', error: error.message });
+//     }
+// };
+
 const addUser = async (req, res) => {
     try {
-        const { fullName, emailId, password, phoneNo, address, role } = req.body;
-        const userExist= await User.findOne({emailId});
+        // Handle the image upload
+        upload.single('photo')(req, res, async (err) => {
+            if (err) {
+                return res.status(400).json({ message: err.message });
+            }
 
-        if(userExist){
-            return res.status(409).json({ message: 'Email already exists.' });
-        }
+            const { fullName, emailId, password, phoneNo, address, role } = req.body;
 
-        if (!fullName || !emailId || !phoneNo || !address || !role) {
-            return res.status(400).json({ message: 'All fields are required.' });
-        }
+            const userExist = await User.findOne({ emailId });
 
-        const hashedPassword= await bcrypt.hash(password, 10);
+            if (userExist) {
+                return res.status(409).json({ message: 'Email already exists.' });
+            }
 
-        const newUser = new User({
-            fullName,
-            emailId,
-            password: hashedPassword,
-            phoneNo,
-            address,
-            role,
+            if (!fullName || !emailId || !phoneNo || !address || !role) {
+                return res.status(400).json({ message: 'All fields are required.' });
+            }
+
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;  // Get the photo file URL
+
+            const newUser = new User({
+                fullName,
+                emailId,
+                password: hashedPassword,
+                phoneNo,
+                address,
+                role,
+                photo: photoUrl,  // Save the photo URL to the database
+            });
+
+            await newUser.save();
+
+            return res.status(201).json({
+                message: 'User added successfully.',
+                user: { fullName, emailId, phoneNo, address, role, photo: photoUrl }
+            });
         });
-
-        await newUser.save();
-
-        return res.status(201).json({ message: 'User added successfully.', user: {fullName, emailId, phoneNo, address, role} });
     } catch (error) {
         console.log(error);
         return res.status(500).json({ message: 'An error occurred.', error: error.message });
