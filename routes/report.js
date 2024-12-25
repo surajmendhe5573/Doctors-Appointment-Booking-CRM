@@ -11,4 +11,6 @@ router.get('/', authenticateToken, reportController.fetchAllReports);  // fetch 
 
 router.get('/date-range', authenticateToken, reportController.fetchReportsByDateRange)  // fetch reports date wise
 
+router.get('/export-excel', reportController.exportReportsToExcel)  // export to excel 
+
 module.exports = router;

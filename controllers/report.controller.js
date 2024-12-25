@@ -1,6 +1,7 @@
 const Report = require('../models/report.model');
 const Hospital = require('../models/hospital.model');
 const moment = require('moment-timezone');
+const ExcelJS= require('exceljs');
 
 // Utility function to parse formatted dateTime
 const parseFormattedDateTime = (formattedDateTime) => {
@@ -164,13 +165,13 @@ exports.deleteReport = async (req, res) => {
 // Fetch all reports
 exports.fetchAllReports = async (req, res) => {
     try {
-         // Check if the user has the role 'Doctor'
-        //  if (req.user.role !== 'Doctor') {
-        //     return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
+        // Check if the user has the role 'Doctor' (uncomment this if needed)
+        // if (req.user.role !== 'Doctor') {
+        //     return res.status(403).json({ message: 'Access Denied. Only doctors can fetch reports.' });
         // }
 
         const reports = await Report.find()
-            .populate('hospital', 'hospitalName') 
+            .populate('hospital') // Populate entire hospital object
             .exec();
 
         if (!reports.length) {
@@ -178,14 +179,17 @@ exports.fetchAllReports = async (req, res) => {
         }
 
         const formattedReports = reports.map((report) => {
+            // Check if hospital is present
+            const hospitalName = report.hospital ? report.hospital.hospitalName : 'Unknown';
+
             const formattedDateTime = `${moment(report.startTime).format('D MMM,YYYY h:mm A')} - ${moment(report.endTime).format('h:mm A')}`;
 
             return {
                 _id: report._id,
-                hospitalName: report.hospital.hospitalName,
+                hospitalName: hospitalName, // Use 'Unknown' if hospital is missing
                 surgeryType: report.surgeryType,
                 patientName: report.patientName,
-                dateTime: formattedDateTime, 
+                dateTime: formattedDateTime,
                 payment: report.payment,
                 paymentStatus: report.paymentStatus,
             };
@@ -196,9 +200,11 @@ exports.fetchAllReports = async (req, res) => {
             reports: formattedReports,
         });
     } catch (error) {
+        console.log(error);
         res.status(500).json({ message: 'Error fetching reports', error: error.message });
     }
 };
+
 
 // Fetch reports by date range
 exports.fetchReportsByDateRange = async (req, res) => {
@@ -255,5 +261,71 @@ exports.fetchReportsByDateRange = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ message: 'Error fetching reports by date range', error: error.message });
+    }
+};
+
+// Export reports to Excel
+exports.exportReportsToExcel = async (req, res) => {
+    try {
+        // Fetch all reports and populate hospital details
+        const reports = await Report.find()
+            .populate('hospital', 'hospitalName')
+            .exec();
+
+        if (!reports.length) {
+            return res.status(404).json({ message: 'No reports found to export.' });
+        }
+
+        // Create a new workbook and worksheet
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Reports');
+
+        // Define columns for the worksheet
+        worksheet.columns = [
+            { header: 'Hospital Name', key: 'hospitalName', width: 30 },
+            { header: 'Surgery Type', key: 'surgeryType', width: 20 },
+            { header: 'Patient Name', key: 'patientName', width: 25 },
+            { header: 'Date and Time', key: 'dateTime', width: 40 },
+            { header: 'Payment', key: 'payment', width: 15 },
+            { header: 'Payment Status', key: 'paymentStatus', width: 20 },
+        ];
+
+        // Add rows to the worksheet
+        reports.forEach((report) => {
+            const formattedDateTime = `${moment(report.startTime).format('D MMM, YYYY h:mm A')} - ${moment(report.endTime).format('h:mm A')}`;
+
+            worksheet.addRow({
+                hospitalName: report.hospital.hospitalName,
+                surgeryType: report.surgeryType,
+                patientName: report.patientName,
+                dateTime: formattedDateTime,
+                payment: report.payment,
+                paymentStatus: report.paymentStatus,
+            });
+        });
+
+        // Style header row
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+        // Auto-filter and freeze header row
+        worksheet.autoFilter = {
+            from: 'A1',
+            to: worksheet.columns[worksheet.columns.length - 1].letter + '1',
+        };
+        worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+        // Write workbook to a buffer and send it as a response
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader('Content-Disposition', 'attachment; filename=reports.xlsx');
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.error('Error exporting reports to Excel:', error);
+        res.status(500).json({ message: 'An error occurred while exporting reports.', error: error.message });
     }
 };
