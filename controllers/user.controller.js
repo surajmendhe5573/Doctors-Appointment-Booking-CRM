@@ -384,7 +384,8 @@ const exportUsersToExcel = async (req, res) => {
             { header: 'Email ID', key: 'emailId', width: 30 },
             { header: 'Phone No', key: 'phoneNo', width: 15 },
             { header: 'Address', key: 'address', width: 30 },
-            { header: 'Role', key: 'role', width: 15 }
+            { header: 'Role', key: 'role', width: 15 },
+            { header: 'Photo', key: 'photo', width: 35 }  // Add photo column
         ];
 
         // Add user data to the worksheet
@@ -394,7 +395,8 @@ const exportUsersToExcel = async (req, res) => {
                 emailId: user.emailId,
                 phoneNo: user.phoneNo,
                 address: user.address,
-                role: user.role
+                role: user.role,
+                photo: user.photo ? user.photo : 'No photo available' // Check if photo exists
             });
         });
 
@@ -416,6 +418,7 @@ const exportUsersToExcel = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
 
 const inviteUser = async (req, res) => {
     try {
