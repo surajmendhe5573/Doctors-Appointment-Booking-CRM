@@ -206,10 +206,10 @@ exports.deleteSchedule = async (req, res) => {
 // Retrieve all schedules
 exports.getAllSchedules = async (req, res) => {
     try {
-        // Fetch all schedules from the database
+        // Fetch all schedules from the database and populate doctor and hospital
         const schedules = await Schedule.find()
-            .populate('doctor', 'name') // Populate doctor's name
-            .populate('hospital', 'hospitalName'); // Populate hospital's name
+            .populate('doctor', 'fullName') // Populate doctor's fullName
+            .populate('hospital', 'hospitalName'); // Populate hospital's hospitalName
 
         // If no schedules found
         if (schedules.length === 0) {
@@ -217,29 +217,45 @@ exports.getAllSchedules = async (req, res) => {
         }
 
         // Format the schedules response
-        const formattedSchedules = schedules.map(schedule => ({
-            _id: schedule._id,
-            doctorName: schedule.doctor.name,
-            hospitalName: schedule.hospital.hospitalName,
-            patientName: schedule.patientName,
-            surgeryType: schedule.surgeryType,
-            day: schedule.day,
-            startDateTime: moment(schedule.startDateTime).format('D MMM, YYYY h:mm A'),
-            endDateTime: moment(schedule.endDateTime).format('D MMM, YYYY h:mm A'),
-            status: schedule.status,
-            paymentAmount: schedule.paymentAmount,
-            paymentStatus: schedule.paymentStatus,
-        }));
+        const formattedSchedules = schedules.map(schedule => {
+            // Ensure doctor and hospital are populated correctly
+            const doctorName = schedule.doctor ? schedule.doctor.fullName : 'No doctor assigned';
+            const hospitalName = schedule.hospital ? schedule.hospital.hospitalName : 'No hospital assigned';
+
+            // Calculate the due amount
+            const dueAmount = schedule.paymentAmount - (schedule.amountReceived || 0);
+            const paymentStatus = dueAmount <= 0 ? 'Done' : 'Pending';
+
+            // Return the formatted schedule with the additional fields
+            return {
+                _id: schedule._id,
+                doctorName: doctorName, // Include doctor name in response
+                hospitalName: hospitalName,
+                patientName: schedule.patientName,
+                surgeryType: schedule.surgeryType,
+                day: schedule.day,
+                startDateTime: moment(schedule.startDateTime).format('D MMM, YYYY h:mm A'),
+                endDateTime: moment(schedule.endDateTime).format('D MMM, YYYY h:mm A'),
+                status: schedule.status,
+                paymentAmount: schedule.paymentAmount,
+                paymentStatus: paymentStatus,
+                amountReceived: schedule.amountReceived,
+                dueAmount: dueAmount > 0 ? dueAmount : 0, // Ensure due amount is not negative
+                paymentMethod: schedule.paymentMethod || 'N/A', // Fallback to 'N/A' if not present
+                documentProofNo: schedule.documentProofNo || 'N/A', // Fallback to 'N/A' if not present
+            };
+        });
 
         res.status(200).json({
             message: 'Schedules fetched successfully',
             schedules: formattedSchedules,
         });
     } catch (error) {
-        console.error('Error fetching schedules:', error.message);
+        console.error(error);
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
+
 
 // Update the status 
 exports.toggleScheduleStatus = async (req, res) => {
