@@ -2,6 +2,7 @@ const User = require('../models/user.model');
 const Hospital = require('../models/hospital.model');
 const Schedule = require('../models/schedule.model');
 const moment = require('moment');
+const ExcelJS= require('exceljs');
 
 exports.createSchedule = async (req, res) => {
     try {
@@ -707,6 +708,78 @@ exports.updatePaymentDetails = async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating payment details:', error.message);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+};
+
+exports.exportSchedulesToExcel = async (req, res) => {
+    try {
+        // Fetch all schedules from the database and populate doctor and hospital
+        const schedules = await Schedule.find()
+            .populate('doctor', 'fullName') // Populate doctor's fullName
+            .populate('hospital', 'hospitalName'); // Populate hospital's hospitalName
+
+        if (schedules.length === 0) {
+            return res.status(404).json({ message: 'No schedules found.' });
+        }
+
+        // Create a new Excel workbook and worksheet
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Schedules');
+
+        // Define the headers for the Excel sheet
+        worksheet.columns = [
+            // { header: 'Schedule ID', key: '_id', width: 30 },
+            { header: 'Doctor Name', key: 'doctorName', width: 30 },
+            { header: 'Hospital Name', key: 'hospitalName', width: 30 },
+            { header: 'Patient Name', key: 'patientName', width: 30 },
+            { header: 'Surgery Type', key: 'surgeryType', width: 20 },
+            { header: 'Day', key: 'day', width: 15 },
+            { header: 'Start Date/Time', key: 'startDateTime', width: 25 },
+            { header: 'End Date/Time', key: 'endDateTime', width: 25 },
+            { header: 'Status', key: 'status', width: 15 },
+            { header: 'Payment Amount', key: 'paymentAmount', width: 20 },
+            { header: 'Payment Status', key: 'paymentStatus', width: 15 },
+            { header: 'Amount Received', key: 'amountReceived', width: 20 },
+            { header: 'Due Amount', key: 'dueAmount', width: 20 },
+            { header: 'Payment Method', key: 'paymentMethod', width: 20 },
+            { header: 'Document Proof No.', key: 'documentProofNo', width: 20 },
+        ];
+
+        // Populate rows with schedule data
+        schedules.forEach(schedule => {
+            const doctorName = schedule.doctor ? schedule.doctor.fullName : 'No doctor assigned';
+            const hospitalName = schedule.hospital ? schedule.hospital.hospitalName : 'No hospital assigned';
+            const dueAmount = schedule.paymentAmount - (schedule.amountReceived || 0);
+
+            worksheet.addRow({
+                // _id: schedule._id,
+                doctorName: doctorName,
+                hospitalName: hospitalName,
+                patientName: schedule.patientName,
+                surgeryType: schedule.surgeryType,
+                day: schedule.day,
+                startDateTime: moment(schedule.startDateTime).format('D MMM, YYYY h:mm A'),
+                endDateTime: moment(schedule.endDateTime).format('D MMM, YYYY h:mm A'),
+                status: schedule.status,
+                paymentAmount: schedule.paymentAmount,
+                paymentStatus: schedule.paymentStatus,
+                amountReceived: schedule.amountReceived,
+                dueAmount: dueAmount > 0 ? dueAmount : 0,
+                paymentMethod: schedule.paymentMethod || 'N/A',
+                documentProofNo: schedule.documentProofNo || 'N/A',
+            });
+        });
+
+        // Set the response header to indicate an Excel file download
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=schedules.xlsx');
+
+        // Write the Excel file to the response
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.error('Error exporting schedules to Excel:', error.message);
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
