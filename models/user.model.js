@@ -42,7 +42,11 @@ const userSchema = new mongoose.Schema({
     resetTokenExpiration: { 
         type: Date,
         default: null
-    }
+    },
+    lastLogin: { 
+         type: Date,
+         default: null
+    } 
 });
 
 
