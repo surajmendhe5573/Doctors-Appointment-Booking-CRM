@@ -541,31 +541,37 @@ exports.getSchedulesByDateRange = async (req, res) => {
         }
 
         // Parse the provided startDate and endDate using moment.js in 'YYYY-MM-DD' format
-        const start = moment(startDate, 'YYYY-MM-DD');
-        const end = moment(endDate, 'YYYY-MM-DD');
+        const start = moment.utc(startDate, 'YYYY-MM-DD'); // Use UTC to handle any time zone issues
+        const end = moment.utc(endDate, 'YYYY-MM-DD'); // Use UTC to handle any time zone issues
 
         // Check if the parsed dates are valid
         if (!start.isValid() || !end.isValid()) {
             return res.status(400).json({ message: 'Invalid date format. Use "YYYY-MM-DD" format.' });
         }
 
-        // Fetch schedules that fall within the start and end date range
+        console.log('Parsed Start Date:', start.format());  // Log for debugging
+        console.log('Parsed End Date:', end.format());      // Log for debugging
+
+        // Fetch schedules that fall within the start and end date range, including overlapping ones
         const schedules = await Schedule.find({
-            startDateTime: { $gte: start.toDate() }, // Greater than or equal to start date
-            endDateTime: { $lte: end.toDate() } // Less than or equal to end date
+            $or: [
+                { startDateTime: { $gte: start.toDate(), $lte: end.toDate() } },  // Schedules starting within the range
+                { endDateTime: { $gte: start.toDate(), $lte: end.toDate() } },    // Schedules ending within the range
+                { startDateTime: { $lte: start.toDate() }, endDateTime: { $gte: end.toDate() } } // Schedules fully within the range
+            ]
         })
-            .populate('doctor', 'fullName') // Populate doctor's full name
-            .populate('hospital', 'hospitalName'); // Populate hospital's name
+        .populate('doctor', 'fullName') // Populate doctor's full name
+        .populate('hospital', 'hospitalName'); // Populate hospital's name
 
         // If no schedules found within the range
         if (schedules.length === 0) {
             return res.status(404).json({ message: 'No schedules found within the specified date range.' });
         }
 
-        // Format the schedules response
+        // Format the schedules response to match the required structure
         const formattedSchedules = schedules.map(schedule => ({
             _id: schedule._id,
-            doctorName: schedule.doctor?.fullName || 'N/A',
+            doctorName: `Dr. ${schedule.doctor?.fullName || 'N/A'}`, // Prefix 'Dr.' to the doctor's name
             hospitalName: schedule.hospital?.hospitalName || 'N/A',
             patientName: schedule.patientName,
             surgeryType: schedule.surgeryType,
@@ -573,6 +579,12 @@ exports.getSchedulesByDateRange = async (req, res) => {
             startDateTime: moment(schedule.startDateTime).format('D MMM, YYYY h:mm A'),
             endDateTime: moment(schedule.endDateTime).format('D MMM, YYYY h:mm A'),
             status: schedule.status,
+            paymentAmount: schedule.paymentAmount || 0,  // Assuming you have this field in the model
+            paymentStatus: schedule.paymentStatus || 'Pending', // Default to 'Pending' if not provided
+            amountReceived: schedule.amountReceived || 0, // Assuming you have this field in the model
+            dueAmount: (schedule.paymentAmount || 0) - (schedule.amountReceived || 0), // Calculate due amount
+            paymentMethod: schedule.paymentMethod || 'N/A', // Default to 'N/A' if not provided
+            documentProofNo: schedule.documentProofNo || 'N/A' // Default to 'N/A' if not provided
         }));
 
         res.status(200).json({
@@ -584,6 +596,7 @@ exports.getSchedulesByDateRange = async (req, res) => {
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
+
 
 // Retrieve transferred appointments within a date range
 exports.getTransferredAppointmentsByDateRange = async (req, res) => {
