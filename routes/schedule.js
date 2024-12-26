@@ -10,18 +10,18 @@ const { createSchedule, updateSchedule, deleteSchedule, getAllSchedules,
 router.post('/create', authenticateToken, createSchedule);
 router.put('/update/:scheduleId', authenticateToken,  updateSchedule);
 router.delete('/delete/:scheduleId', authenticateToken, deleteSchedule)
-router.get('/', authenticateToken, getAllSchedules)
+router.get('/', getAllSchedules)
 router.get('/date-range', authenticateToken, getSchedulesByDateRange); // fetch schedules date wise
 
-router.put("/:scheduleId/status",authenticateToken, toggleScheduleStatus);  // Toggle status (Done or Upcoming) / Not Available
+router.put("/:scheduleId/status", toggleScheduleStatus);  // Toggle status (Done or Upcoming) / Not Available
 router.put('/:scheduleId',authenticateToken, transferAppointment);  // Route for transferring an appointment (update doctor or hospital)
 router.get('/transferred',authenticateToken, getTransferredAppointments);  // fetching transferred appointments
 router.get('/transferred/date-range', authenticateToken, getTransferredAppointmentsByDateRange);  // fetching transferred appointments by date range
 router.put('/retake/:scheduleId', authenticateToken, retakeTransferredAppointment);  // retake transferred appointments
 
 
-router.get('/upcoming-status', authenticateToken, getUpcomingSchedules);  // Route to fetch all upcoming schedules
-router.get('/done-status', authenticateToken, getDoneSchedules);     // Route to fetch all done schedules
+router.get('/upcoming-status', getUpcomingSchedules);  // Route to fetch all upcoming schedules
+router.get('/done-status', getDoneSchedules);     // Route to fetch all done schedules
 router.put('/:scheduleId/payment', authenticateToken, updatePaymentDetails);
 
 router.get('/export-excel', exportSchedulesToExcel);  

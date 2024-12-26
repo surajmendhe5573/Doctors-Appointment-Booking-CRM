@@ -208,30 +208,40 @@ const getAllHospitals = async (req, res) => {
 
 const exportHospitalsToExcel = async (req, res) => {
     try {
-        // Fetch all hospitals with the calculated fields
+        // Fetch all hospitals with the doneScheduleCount
         const hospitals = await Hospital.aggregate([
             {
                 $lookup: {
                     from: 'schedules', // Name of the Schedule collection
-                    localField: '_id',
-                    foreignField: 'hospital',
+                    localField: '_id',  // The hospital's ID
+                    foreignField: 'hospital', // The 'hospital' field in the Schedule collection
                     as: 'schedules',
                 },
             },
             {
                 $addFields: {
-                    totalSchedulePayment: { $sum: '$schedules.paymentAmount' },
-                    totalAmountReceived: { $sum: '$schedules.amountReceived' },
+                    // Count the 'Done' schedules
+                    doneScheduleCount: {
+                        $size: {
+                            $filter: {
+                                input: '$schedules',
+                                as: 'schedule',
+                                cond: { $eq: ['$$schedule.status', 'Done'] }, // Filter 'Done' schedules
+                            },
+                        },
+                    },
                 },
             },
             {
-                $addFields: {
-                    totalDueAmount: { $subtract: ['$totalSchedulePayment', '$totalAmountReceived'] }
-                }
-            },
-            {
                 $project: {
-                    schedules: 0, // Exclude schedules array from the result
+                    _id: 0, // Exclude _id if not needed, or include 1 to keep it
+                    hospitalName: 1,
+                    hospitalEmailId: 1,
+                    hospitalPhoneNo: 1,
+                    adminFullName: 1,
+                    adminPhoneNo: 1,
+                    createdAt: 1,
+                    doneScheduleCount: 1, // Include doneScheduleCount explicitly
                 },
             },
         ]);
@@ -251,9 +261,7 @@ const exportHospitalsToExcel = async (req, res) => {
             { header: 'Hospital Phone No', key: 'hospitalPhoneNo', width: 20 },
             { header: 'Admin Full Name', key: 'adminFullName', width: 25 },
             { header: 'Admin Phone No', key: 'adminPhoneNo', width: 20 },
-            { header: 'Total Schedule Payment', key: 'totalSchedulePayment', width: 25 },
-            { header: 'Total Amount Received', key: 'totalAmountReceived', width: 25 },
-            { header: 'Total Due Amount', key: 'totalDueAmount', width: 25 },
+            { header: 'Done Schedule Count', key: 'doneScheduleCount', width: 25 },
             { header: 'Created At', key: 'createdAt', width: 25 },
         ];
 
@@ -265,9 +273,7 @@ const exportHospitalsToExcel = async (req, res) => {
                 hospitalPhoneNo: hospital.hospitalPhoneNo,
                 adminFullName: hospital.adminFullName,
                 adminPhoneNo: hospital.adminPhoneNo,
-                totalSchedulePayment: hospital.totalSchedulePayment || 0,
-                totalAmountReceived: hospital.totalAmountReceived || 0,
-                totalDueAmount: hospital.totalDueAmount || 0,
+                doneScheduleCount: hospital.doneScheduleCount || 0,
                 createdAt: hospital.createdAt ? hospital.createdAt.toISOString() : 'N/A',
             });
         });
@@ -300,10 +306,69 @@ const exportHospitalsToExcel = async (req, res) => {
 
 
 
+const getHospitalDoneSchedules = async (req, res) => {
+    try {
+        // Fetch hospitals and count the 'Done' schedules for each hospital
+        const hospitals = await Hospital.aggregate([
+            {
+                $lookup: {
+                    from: 'schedules', // Name of the Schedule collection
+                    localField: '_id', // The hospital's ID
+                    foreignField: 'hospital', // The hospital field in the Schedule collection
+                    as: 'schedules',
+                },
+            },
+            {
+                $addFields: {
+                    // Count the 'Done' schedules
+                    doneScheduleCount: {
+                        $size: {
+                            $filter: {
+                                input: '$schedules',
+                                as: 'schedule',
+                                cond: { $eq: ['$$schedule.status', 'Done'] }, // Filter 'Done' schedules
+                            },
+                        },
+                    },
+                },
+            },
+            {
+                $project: {
+                    _id: 0, // Exclude _id if not needed, or include 1 to keep it
+                    hospitalName: 1,
+                    hospitalEmailId: 1,
+                    hospitalPhoneNo: 1,
+                    adminFullName: 1,
+                    adminPhoneNo: 1,
+                    createdAt: 1,
+                    doneScheduleCount: 1, // Include doneScheduleCount explicitly
+                },
+            },
+        ]);
+
+        if (!hospitals.length) {
+            return res.status(404).json({ message: 'No hospitals found.' });
+        }
+
+        return res.status(200).json({
+            message: 'Hospitals with Done schedules retrieved successfully.',
+            hospitals,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'An error occurred.', error: error.message });
+    }
+};
+
+
+
+
+
 module.exports = {
     addHospital,
     updateHospital,
     deleteHospital,
     getAllHospitals,
+    getHospitalDoneSchedules,
     exportHospitalsToExcel,
 };
