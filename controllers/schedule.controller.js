@@ -643,6 +643,77 @@ exports.getTransferredAppointmentsByDateRange = async (req, res) => {
 };
 
 
+// // update payment details
+// exports.updatePaymentDetails = async (req, res) => {
+//     try {
+//         const { scheduleId } = req.params;
+//         const { amountReceived, paymentMethod, documentProofNo } = req.body;
+
+//         // Validate the inputs
+//         if (!amountReceived || !paymentMethod || !documentProofNo) {
+//             return res.status(400).json({ 
+//                 message: 'Amount received, payment method, and document proof number are required.' 
+//             });
+//         }
+
+//         // Ensure amountReceived is a valid number
+//         const amountReceivedNum = Number(amountReceived);
+//         if (isNaN(amountReceivedNum) || amountReceivedNum <= 0) {
+//             return res.status(400).json({ message: 'Invalid amount received. Must be a positive number.' });
+//         }
+
+//         // Find the schedule by ID
+//         const schedule = await Schedule.findById(scheduleId);
+//         if (!schedule) {
+//             return res.status(404).json({ message: 'Schedule not found!' });
+//         }
+
+//         // Calculate the new amount received
+//         const newAmountReceived = (schedule.amountReceived || 0) + amountReceivedNum; // Safe increment
+//         schedule.amountReceived = newAmountReceived; // Update the amountReceived field
+
+//         // Update the other fields
+//         schedule.paymentMethod = paymentMethod;
+//         schedule.documentProofNo = documentProofNo;
+
+//         // Calculate the due amount
+//         const dueAmount = schedule.paymentAmount - newAmountReceived;
+
+//         // Update paymentStatus based on the due amount
+//         if (dueAmount <= 0) {
+//             schedule.paymentStatus = 'Done';
+//         } else {
+//             schedule.paymentStatus = 'Pending';
+//         }
+
+//         // Save the updated schedule
+//         const updatedSchedule = await schedule.save();
+
+//         // Format the response
+//         const response = {
+//             _id: updatedSchedule._id,
+//             patientName: updatedSchedule.patientName,
+//             surgeryType: updatedSchedule.surgeryType,
+//             paymentAmount: updatedSchedule.paymentAmount,
+//             amountReceived: updatedSchedule.amountReceived,
+//             dueAmount: dueAmount > 0 ? dueAmount : 0, // Ensure due amount is not negative
+//             paymentMethod: updatedSchedule.paymentMethod,
+//             documentProofNo: updatedSchedule.documentProofNo,
+//             paymentStatus: updatedSchedule.paymentStatus,
+//         };
+
+//         res.status(200).json({
+//             message: 'Payment details updated successfully',
+//             schedule: response,
+//         });
+//     } catch (error) {
+//         console.error('Error updating payment details:', error.message);
+//         res.status(500).json({ message: 'Internal server error', error: error.message });
+//     }
+// };
+
+
+
 // update payment details
 exports.updatePaymentDetails = async (req, res) => {
     try {
@@ -651,9 +722,7 @@ exports.updatePaymentDetails = async (req, res) => {
 
         // Validate the inputs
         if (!amountReceived || !paymentMethod || !documentProofNo) {
-            return res.status(400).json({ 
-                message: 'Amount received, payment method, and document proof number are required.' 
-            });
+            return res.status(400).json({ message: 'Amount received, payment method, and document proof number are required.' });
         }
 
         // Ensure amountReceived is a valid number
@@ -663,14 +732,14 @@ exports.updatePaymentDetails = async (req, res) => {
         }
 
         // Find the schedule by ID
-        const schedule = await Schedule.findById(scheduleId);
+        const schedule = await Schedule.findById(scheduleId).populate('hospital');
         if (!schedule) {
             return res.status(404).json({ message: 'Schedule not found!' });
         }
 
         // Calculate the new amount received
-        const newAmountReceived = (schedule.amountReceived || 0) + amountReceivedNum; // Safe increment
-        schedule.amountReceived = newAmountReceived; // Update the amountReceived field
+        const newAmountReceived = (schedule.amountReceived || 0) + amountReceivedNum;
+        schedule.amountReceived = newAmountReceived;
 
         // Update the other fields
         schedule.paymentMethod = paymentMethod;
@@ -689,6 +758,12 @@ exports.updatePaymentDetails = async (req, res) => {
         // Save the updated schedule
         const updatedSchedule = await schedule.save();
 
+        // Update the hospital's total payment and due amount
+        const hospital = schedule.hospital;
+        hospital.totalSchedulePayment += amountReceivedNum;  // Increment the total schedule payment
+        hospital.totalDueAmount = hospital.totalSchedulePayment - hospital.totalSchedulePayment;  // Adjust the total due amount
+        await hospital.save();
+
         // Format the response
         const response = {
             _id: updatedSchedule._id,
@@ -696,7 +771,7 @@ exports.updatePaymentDetails = async (req, res) => {
             surgeryType: updatedSchedule.surgeryType,
             paymentAmount: updatedSchedule.paymentAmount,
             amountReceived: updatedSchedule.amountReceived,
-            dueAmount: dueAmount > 0 ? dueAmount : 0, // Ensure due amount is not negative
+            dueAmount: dueAmount > 0 ? dueAmount : 0,
             paymentMethod: updatedSchedule.paymentMethod,
             documentProofNo: updatedSchedule.documentProofNo,
             paymentStatus: updatedSchedule.paymentStatus,
@@ -711,6 +786,9 @@ exports.updatePaymentDetails = async (req, res) => {
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
+
+
+
 
 exports.exportSchedulesToExcel = async (req, res) => {
     try {
