@@ -208,7 +208,7 @@ const getAllHospitals = async (req, res) => {
 
 const exportHospitalsToExcel = async (req, res) => {
     try {
-        // Fetch all hospitals with additional details
+        // Fetch all hospitals with the calculated fields
         const hospitals = await Hospital.aggregate([
             {
                 $lookup: {
@@ -221,7 +221,13 @@ const exportHospitalsToExcel = async (req, res) => {
             {
                 $addFields: {
                     totalSchedulePayment: { $sum: '$schedules.paymentAmount' },
+                    totalAmountReceived: { $sum: '$schedules.amountReceived' },
                 },
+            },
+            {
+                $addFields: {
+                    totalDueAmount: { $subtract: ['$totalSchedulePayment', '$totalAmountReceived'] }
+                }
             },
             {
                 $project: {
@@ -246,6 +252,8 @@ const exportHospitalsToExcel = async (req, res) => {
             { header: 'Admin Full Name', key: 'adminFullName', width: 25 },
             { header: 'Admin Phone No', key: 'adminPhoneNo', width: 20 },
             { header: 'Total Schedule Payment', key: 'totalSchedulePayment', width: 25 },
+            { header: 'Total Amount Received', key: 'totalAmountReceived', width: 25 },
+            { header: 'Total Due Amount', key: 'totalDueAmount', width: 25 },
             { header: 'Created At', key: 'createdAt', width: 25 },
         ];
 
@@ -258,6 +266,8 @@ const exportHospitalsToExcel = async (req, res) => {
                 adminFullName: hospital.adminFullName,
                 adminPhoneNo: hospital.adminPhoneNo,
                 totalSchedulePayment: hospital.totalSchedulePayment || 0,
+                totalAmountReceived: hospital.totalAmountReceived || 0,
+                totalDueAmount: hospital.totalDueAmount || 0,
                 createdAt: hospital.createdAt ? hospital.createdAt.toISOString() : 'N/A',
             });
         });
@@ -287,6 +297,7 @@ const exportHospitalsToExcel = async (req, res) => {
         res.status(500).json({ message: 'An error occurred while exporting data.', error: error.message });
     }
 };
+
 
 
 module.exports = {
