@@ -100,31 +100,7 @@ const deleteHospital = async (req, res) => {
   }
 };
 
-// // Fetch all hospitals
-// const getAllHospitals = async (req, res) => {
-//   try {
 
-//     //      // Check if the user has the role 'Doctor'
-//     //      if (req.user.role !== 'Doctor') {
-//     //         return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-//     // }
-    
-//       // Retrieve all hospitals from the database
-//       const hospitals = await Hospital.find();
-
-//       if (!hospitals.length) {
-//           return res.status(404).json({ message: 'No hospitals found.' });
-//       }
-
-//       return res.status(200).json({ message: 'Hospitals retrieved successfully.', hospitals });
-//   } catch (error) {
-//       console.log(error);
-//       return res.status(500).json({ message: 'An error occurred.', error: error.message });
-//   }
-// };
-
-
-// // Fetch all hospitals with total payment amount
 // const getAllHospitals = async (req, res) => {
 //     try {
 //         // Fetch all hospitals with the total payment amount of their schedules
@@ -132,19 +108,26 @@ const deleteHospital = async (req, res) => {
 //             {
 //                 $lookup: {
 //                     from: 'schedules', // Name of the Schedule collection in MongoDB
-//                     localField: '_id',
-//                     foreignField: 'hospital',
+//                     localField: '_id',  // The hospital's ID field
+//                     foreignField: 'hospital', // The 'hospital' field in the Schedule collection
 //                     as: 'schedules',
 //                 },
 //             },
 //             {
 //                 $addFields: {
-//                     totalSchedulePayment: { $sum: '$schedules.paymentAmount' },
+//                     totalSchedulePayment: { $sum: '$schedules.paymentAmount' }, // Total payment amount for all schedules
+//                     totalAmountReceived: { $sum: '$schedules.amountReceived' }, // Total received amount for all schedules
 //                 },
 //             },
 //             {
+//                 $addFields: {
+//                     // Calculate the remaining due amount
+//                     totalDueAmount: { $subtract: ['$totalSchedulePayment', '$totalAmountReceived'] }
+//                 }
+//             },
+//             {
 //                 $project: {
-//                     schedules: 0, // Exclude schedules array from the result
+//                     schedules: 0, // Exclude the schedules field from the response
 //                 },
 //             },
 //         ]);
@@ -153,17 +136,19 @@ const deleteHospital = async (req, res) => {
 //             return res.status(404).json({ message: 'No hospitals found.' });
 //         }
 
-//         return res.status(200).json({ message: 'Hospitals retrieved successfully.', hospitals });
+//         return res.status(200).json({
+//             message: 'Hospitals retrieved successfully.',
+//             hospitals,
+//         });
 //     } catch (error) {
 //         console.error(error);
 //         return res.status(500).json({ message: 'An error occurred.', error: error.message });
 //     }
 // };
 
-
 const getAllHospitals = async (req, res) => {
     try {
-        // Fetch all hospitals with the total payment amount of their schedules
+        // Fetch all hospitals with the total payment amount of their schedules and the count of 'Done' schedules
         const hospitals = await Hospital.aggregate([
             {
                 $lookup: {
@@ -177,13 +162,23 @@ const getAllHospitals = async (req, res) => {
                 $addFields: {
                     totalSchedulePayment: { $sum: '$schedules.paymentAmount' }, // Total payment amount for all schedules
                     totalAmountReceived: { $sum: '$schedules.amountReceived' }, // Total received amount for all schedules
+                    // Count the 'Done' schedules
+                    doneScheduleCount: {
+                        $size: {
+                            $filter: {
+                                input: '$schedules',
+                                as: 'schedule',
+                                cond: { $eq: ['$$schedule.status', 'Done'] }, // Filter 'Done' schedules
+                            },
+                        },
+                    },
                 },
             },
             {
                 $addFields: {
                     // Calculate the remaining due amount
-                    totalDueAmount: { $subtract: ['$totalSchedulePayment', '$totalAmountReceived'] }
-                }
+                    totalDueAmount: { $subtract: ['$totalSchedulePayment', '$totalAmountReceived'] },
+                },
             },
             {
                 $project: {
@@ -205,6 +200,7 @@ const getAllHospitals = async (req, res) => {
         return res.status(500).json({ message: 'An error occurred.', error: error.message });
     }
 };
+
 
 const exportHospitalsToExcel = async (req, res) => {
     try {
