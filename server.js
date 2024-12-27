@@ -17,7 +17,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const port= process.env.PORT || 6000
 
 app.get('/', (req, res)=>{
-    res.send('Doctors-Appointment-Booking-CRM');
+    res.send('Welcome to the Doctors-Appointment-Booking-CRM');
 });
 
 require('./db/DB');
