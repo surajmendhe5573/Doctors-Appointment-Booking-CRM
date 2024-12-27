@@ -28,6 +28,7 @@ app.use('/api/hospitals', require('./routes/hospital.route'));
 app.use('/api/reports', require('./routes/report'));
 app.use('/api/schedules', require('./routes/schedule'));
 
+// port
 app.listen(port, ()=>{
     console.log(`Server is running on http://localhost:${port}`);
 })
