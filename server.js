@@ -6,7 +6,13 @@ require('dotenv').config();
 
 // middleware
 app.use(express.json());
-app.use(cors());
+// app.use(cors());
+
+// Configure CORS middleware
+const corsOptions = {
+    origin: 'http://localhost:5173', // Specify your frontend origin
+    credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+  };
 
 app.use(express.urlencoded({ extended: true }));
 
