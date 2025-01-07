@@ -8,62 +8,51 @@ const upload= require('../utils/upload');
 const moment = require('moment');
 require('dotenv').config();
 
+const addUser = async (req, res) => {
+    try {
+        upload.single('photo')(req, res, async (err) => {
+            if (err) {
+                return res.status(400).json({ message: err.message });
+            }
 
-// const login = async (req, res) => {
-//     try {
-//         const { emailId, password } = req.body;
+            const { fullName, emailId, password, phoneNo, address, role } = req.body;
 
-//         if (!emailId || !password) {
-//             return res.status(400).json({ message: 'Email and Password are required' });
-//         }
+            const userExist = await User.findOne({ emailId });
 
-//         const userExist = await User.findOne({ emailId });
-//         if (!userExist) {
-//             return res.status(401).json({ message: 'Invalid credentials' });
-//         }
+            if (userExist) {
+                return res.status(409).json({ message: 'Email already exists.' });
+            }
 
-//         const isMatch = await bcrypt.compare(password, userExist.password);
-//         if (!isMatch) {
-//             return res.status(401).json({ message: 'Invalid credentials' });
-//         }
+            if (!fullName || !emailId || !phoneNo || !address || !role) {
+                return res.status(400).json({ message: 'All fields are required.' });
+            }
 
-//         if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
-//             console.error('JWT secrets are not defined');
-//             return res.status(500).json({ message: 'Server configuration error' });
-//         }
+            const hashedPassword = await bcrypt.hash(password, 10);
 
-//         // Generate tokens with role included in the payload
-//         const accessToken = jwt.sign(
-//             { id: userExist._id, role: userExist.role }, // Add role to token payload
-//             process.env.JWT_SECRET, 
-//             { expiresIn: '30m' }
-//         );
-//         const refreshToken = jwt.sign(
-//             { id: userExist._id, role: userExist.role }, // Add role to refresh token as well
-//             process.env.JWT_REFRESH_SECRET, 
-//             { expiresIn: '7d' }
-//         );
+            const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;  // Get the photo file URL
 
-//         // Save refreshToken to the database without full validation
-//         await User.updateOne({ _id: userExist._id }, { refreshToken });
+            const newUser = new User({
+                fullName,
+                emailId,
+                password: hashedPassword,
+                phoneNo,
+                address,
+                role,
+                photo: photoUrl,  
+            });
 
-//         // Respond with user details and tokens
-//         res.status(200).json({
-//             message: 'User signed in successfully',
-//             accessToken,
-//             refreshToken,
-//             user: {
-//                 fullName: userExist.fullName,
-//                 emailId: userExist.emailId,
-//                 role: userExist.role,
-//                 photo: userExist.photo  // Send photo along with other user details
-//             }
-//         });
-//     } catch (error) {
-//         console.error('Error during login:', error.message);
-//         res.status(500).json({ message: 'Internal server error' });
-//     }
-// };
+            await newUser.save();
+
+            return res.status(201).json({
+                message: 'User added successfully.',
+                user: { fullName, emailId, phoneNo, address, role, photo: photoUrl }
+            });
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'An error occurred.', error: error.message });
+    }
+};
 
 const login = async (req, res) => {
     try {
@@ -88,7 +77,6 @@ const login = async (req, res) => {
             return res.status(500).json({ message: 'Server configuration error' });
         }
 
-        // Generate tokens with role included in the payload
         const accessToken = jwt.sign(
             { id: userExist._id, role: userExist.role },
             process.env.JWT_SECRET,
@@ -110,12 +98,10 @@ const login = async (req, res) => {
             { lastLogin: currentTime, refreshToken }
         );
 
-        // Format the previous lastLogin time or the current time if it's the first login
         const formattedLastLogin = previousLastLogin
             ? moment(previousLastLogin).format('hh:mm A, MMMM D, YYYY') // Previous login time
             : moment(currentTime).format('hh:mm A, MMMM D, YYYY'); // First login or new time
 
-        // Respond with user details and tokens
         res.status(200).json({
             message: 'User signed in successfully',
             accessToken,
@@ -125,7 +111,7 @@ const login = async (req, res) => {
                 emailId: userExist.emailId,
                 role: userExist.role,
                 photo: userExist.photo,
-                lastLogin: formattedLastLogin // Send the previous login time
+                lastLogin: formattedLastLogin 
             }
         });
     } catch (error) {
@@ -133,7 +119,6 @@ const login = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
-
 
 
 // Refresh Token Endpoint
@@ -197,92 +182,9 @@ const logout = async (req, res) => {
 };
 
 
-
-
-// const addUser = async (req, res) => {
-//     try {
-//         const { fullName, emailId, password, phoneNo, address, role } = req.body;
-//         const userExist= await User.findOne({emailId});
-
-//         if(userExist){
-//             return res.status(409).json({ message: 'Email already exists.' });
-//         }
-
-//         if (!fullName || !emailId || !phoneNo || !address || !role) {
-//             return res.status(400).json({ message: 'All fields are required.' });
-//         }
-
-//         const hashedPassword= await bcrypt.hash(password, 10);
-
-//         const newUser = new User({
-//             fullName,
-//             emailId,
-//             password: hashedPassword,
-//             phoneNo,
-//             address,
-//             role,
-//         });
-
-//         await newUser.save();
-
-//         return res.status(201).json({ message: 'User added successfully.', user: {fullName, emailId, phoneNo, address, role} });
-//     } catch (error) {
-//         console.log(error);
-//         return res.status(500).json({ message: 'An error occurred.', error: error.message });
-//     }
-// };
-
-const addUser = async (req, res) => {
-    try {
-        // Handle the image upload
-        upload.single('photo')(req, res, async (err) => {
-            if (err) {
-                return res.status(400).json({ message: err.message });
-            }
-
-            const { fullName, emailId, password, phoneNo, address, role } = req.body;
-
-            const userExist = await User.findOne({ emailId });
-
-            if (userExist) {
-                return res.status(409).json({ message: 'Email already exists.' });
-            }
-
-            if (!fullName || !emailId || !phoneNo || !address || !role) {
-                return res.status(400).json({ message: 'All fields are required.' });
-            }
-
-            const hashedPassword = await bcrypt.hash(password, 10);
-
-            const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;  // Get the photo file URL
-
-            const newUser = new User({
-                fullName,
-                emailId,
-                password: hashedPassword,
-                phoneNo,
-                address,
-                role,
-                photo: photoUrl,  // Save the photo URL to the database
-            });
-
-            await newUser.save();
-
-            return res.status(201).json({
-                message: 'User added successfully.',
-                user: { fullName, emailId, phoneNo, address, role, photo: photoUrl }
-            });
-        });
-    } catch (error) {
-        console.log(error);
-        return res.status(500).json({ message: 'An error occurred.', error: error.message });
-    }
-};
-
-// Update an existing user
 const updateUser = async (req, res) => {
     try {
-        const { id } = req.params; // User ID from URL params
+        const { id } = req.params; 
         const { fullName, emailId, phoneNo, address, role } = req.body;
 
         // Validate required fields
