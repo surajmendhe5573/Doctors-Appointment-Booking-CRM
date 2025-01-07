@@ -184,50 +184,68 @@ const logout = async (req, res) => {
 
 const updateUser = async (req, res) => {
     try {
-        const { id } = req.params; 
-        const { fullName, emailId, phoneNo, address, role } = req.body;
+        upload.single('photo')(req, res, async (err) => {
+            if (err) {
+                return res.status(400).json({ message: err.message });
+            }
 
-        // Validate required fields
-        if (!fullName || !emailId || !phoneNo || !address || !role) {
-            return res.status(400).json({ message: 'All fields are required.' });
-        }
+            const {id}= req.params;
+            const { fullName, emailId, password, phoneNo, address, role } = req.body;
 
-          // Ensure the authenticated user is updating their own details
-        //   if (req.user.id !== id) {
-        //     return res.status(403).json({ message: 'Access Denied. You can only update your own details.' });
-        // }
+           // Allow users to update their own details or allow admins to update any user
+           if(req.user.role !== 'Admin' && req.user.id !== id) {
+                  return res.status(403).json({ message: 'You are not authorized to update this user' });
+                }
 
-        // Find user by ID and update
-        const updatedUser = await User.findByIdAndUpdate(
-            id,
-            { fullName, emailId, phoneNo, address, role },
-            { new: true } // Return the updated document
-        );
+            const updates= {};
 
-        if (!updatedUser) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
+            if (fullName) updates.fullName = fullName;
+            if (phoneNo) updates.phoneNo = phoneNo;
+            if (address) updates.address = address;
+            if(role) updates.role= role
 
-        return res.status(200).json({ message: 'User updated successfully.', user: updatedUser });
+            if(emailId){
+                const userExist= await User.findOne({emailId});
+                if(userExist && userExist._id.toString() !== id){
+                    return res.status(409).json({message: 'Email is already taken by another user'});
+                }
+                updates.emailId= emailId;
+            }
+
+            if(password){
+                const hashedPassword= await bcrypt.hash(password, 10);
+                updates.password= hashedPassword;
+            }
+
+            // Update photo if a file is uploaded
+            if (req.file) {
+                updates.photo = `/uploads/${req.file.filename}`;
+            }
+
+            const updateUser= await User.findByIdAndUpdate(id, updates, {new:true});
+            if(!updateUser){
+                return res.status(404).json({message: 'User not found'});
+            }
+
+            return res.status(200).json({
+                message: 'User updated successfully', user:updateUser});
+        });
     } catch (error) {
         console.log(error);
         return res.status(500).json({ message: 'An error occurred.', error: error.message });
     }
 };
 
-// Delete a user
 const deleteUser = async (req, res) => {
     try {
-        const { id } = req.params; // User ID from URL params
-
-         // Ensure the authenticated user is updating their own details
-        //  if (req.user.id !== id) {
-        //     return res.status(403).json({ message: 'Access Denied. You can only update your own details.' });
-        // }
-
-        // Find user by ID and delete
+        const { id } = req.params;
+         
+        // Allow admins to delete any user and users to update their own details  
+        if(req.user.role !== 'Admin' && req.user.id !== id) {
+            return res.status(403).json({ message: 'You are not authorized to update this user' });
+        }
+        
         const deletedUser = await User.findByIdAndDelete(id);
-
         if (!deletedUser) {
             return res.status(404).json({ message: 'User not found.' });
         }
@@ -239,12 +257,17 @@ const deleteUser = async (req, res) => {
     }
 };
 
-// Retrieve all users
+
 const getAllUsers = async (req, res) => {
     try {
+
+        // Allow admins to fetch all users
+        if(req.user.role !== 'Admin') {
+            return res.status(403).json({ message: 'You are not authorized to update this user' });
+        }
+
         const users = await User.find({}, '-password');
 
-        // Check if users exist
         if (!users.length) {
             return res.status(404).json({ message: 'No users found.' });
         }
