@@ -103,7 +103,6 @@ JWT_REFRESH_SECRET=your_jwt_refresh_secret
 EMAIL=your_email@example.com
 EMAIL_PASSWORD=your_email_password
 
-
 ```
 
 ## 🚀 About Me
