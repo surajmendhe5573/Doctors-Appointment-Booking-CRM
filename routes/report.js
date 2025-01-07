@@ -4,13 +4,13 @@ const authenticateToken= require('../middleware/auth.middleware');
 const reportController = require('../controllers/report.controller');
 
 
-router.post('/add', authenticateToken, reportController.addReport);  // add report
-router.put('/update/:reportId', authenticateToken, reportController.updateReport);  // update report
-router.delete('/delete/:reportId', authenticateToken,  reportController.deleteReport);  // delete report 
-router.get('/', authenticateToken, reportController.fetchAllReports);  // fetch all reports
+router.post('/add', authenticateToken, reportController.addReport);  
+router.put('/update/:reportId', authenticateToken, reportController.updateReport); 
+router.delete('/delete/:reportId', authenticateToken,  reportController.deleteReport);   
+router.get('/', authenticateToken, reportController.fetchAllReports);  
 
-router.get('/date-range', authenticateToken, reportController.fetchReportsByDateRange)  // fetch reports date wise
+router.get('/date-range', authenticateToken, reportController.fetchReportsByDateRange)  
 
-router.get('/export-excel', reportController.exportReportsToExcel)  // export to excel 
+router.get('/export-excel', reportController.exportReportsToExcel)   
 
 module.exports = router;

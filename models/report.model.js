@@ -16,8 +16,14 @@ const reportSchema = new mongoose.Schema({
         required: true,
     },
   
-    startTime: { type: Date, required: true }, // Start time
-    endTime: { type: Date, required: true },
+    startTime: { 
+        type: Date, 
+        required: true 
+    }, 
+    endTime: {
+         type: Date, 
+         required: true 
+    },
     payment: {
         type: Number,
         required: true

@@ -19,7 +19,6 @@ const parseFormattedDateTime = (formattedDateTime) => {
     };
 };
 
-// Add a new report
 exports.addReport = async (req, res) => {
     try {
         // Check if the user has the role 'Doctor'
@@ -32,13 +31,11 @@ exports.addReport = async (req, res) => {
         // Parse the formatted dateTime
         const { startTime, endTime } = parseFormattedDateTime(dateTime);
 
-        // Find the hospital by name
         const hospital = await Hospital.findOne({ hospitalName });
         if (!hospital) {
             return res.status(404).json({ message: 'Hospital not found' });
         }
 
-        // Create a new report
         const newReport = new Report({
             hospital: hospital._id,
             surgeryType,
@@ -68,7 +65,7 @@ exports.addReport = async (req, res) => {
     }
 };
 
-// Update an existing report
+
 exports.updateReport = async (req, res) => {
     try {
 
@@ -95,7 +92,7 @@ exports.updateReport = async (req, res) => {
 
         // Update fields for the report
         const updateFields = {
-            hospital: hospital._id, // Update hospital reference
+            hospital: hospital._id, 
             surgeryType,
             patientName,
             payment,
@@ -112,7 +109,7 @@ exports.updateReport = async (req, res) => {
         const updatedReport = await Report.findByIdAndUpdate(
             reportId,
             updateFields,
-            { new: true } // Return the updated report
+            { new: true } 
         );
 
         if (!updatedReport) {
@@ -137,8 +134,6 @@ exports.updateReport = async (req, res) => {
     }
 };
 
-
-// Delete a report
 exports.deleteReport = async (req, res) => {
     try {
 
@@ -162,7 +157,6 @@ exports.deleteReport = async (req, res) => {
     }
 };
 
-// Fetch all reports
 exports.fetchAllReports = async (req, res) => {
     try {
         // Check if the user has the role 'Doctor' (uncomment this if needed)
@@ -206,13 +200,8 @@ exports.fetchAllReports = async (req, res) => {
 };
 
 
-// Fetch reports by date range
 exports.fetchReportsByDateRange = async (req, res) => {
     try {
-        // Check if the user has the role 'Doctor'
-        // if (req.user.role !== 'Doctor') {
-        //     return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-        // }
         const { startDate, endDate } = req.query;
 
         if (!startDate || !endDate) {
@@ -249,7 +238,7 @@ exports.fetchReportsByDateRange = async (req, res) => {
                 hospitalName: report.hospital.hospitalName,
                 surgeryType: report.surgeryType,
                 patientName: report.patientName,
-                dateTime: formattedDateTime, // Formatted dateTime
+                dateTime: formattedDateTime, 
                 payment: report.payment,
                 paymentStatus: report.paymentStatus,
             };
