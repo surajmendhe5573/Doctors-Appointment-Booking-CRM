@@ -29,7 +29,7 @@ const addUser = async (req, res) => {
 
             const hashedPassword = await bcrypt.hash(password, 10);
 
-            const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;  // Get the photo file URL
+            const photoUrl = req.file ? `/uploads/${req.file.filename}` : null; 
 
             const newUser = new User({
                 fullName,
@@ -120,8 +120,6 @@ const login = async (req, res) => {
     }
 };
 
-
-// Refresh Token Endpoint
 const refreshAccessToken = async (req, res) => {
     try {
         const { refreshToken } = req.body;
@@ -130,7 +128,6 @@ const refreshAccessToken = async (req, res) => {
             return res.status(400).json({ message: 'Refresh token is required' });
         }
 
-        // Verify refresh token
         jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, async (err, decoded) => {
             if (err) {
                 return res.status(403).json({ message: 'Invalid refresh token' });
@@ -181,7 +178,6 @@ const logout = async (req, res) => {
     }
 };
 
-
 const updateUser = async (req, res) => {
     try {
         upload.single('photo')(req, res, async (err) => {
@@ -217,7 +213,6 @@ const updateUser = async (req, res) => {
                 updates.password= hashedPassword;
             }
 
-            // Update photo if a file is uploaded
             if (req.file) {
                 updates.photo = `/uploads/${req.file.filename}`;
             }
@@ -305,10 +300,10 @@ const forgetPassword = async (req, res) => {
 
         // Configure nodemailer
         const transporter = nodemailer.createTransport({
-            service: 'gmail', // Replace with your email service provider
+            service: 'gmail', 
             auth: {
-                user: process.env.EMAIL, // Your email address
-                pass: process.env.EMAIL_PASSWORD // Your email password or app-specific password
+                user: process.env.EMAIL, 
+                pass: process.env.EMAIL_PASSWORD 
             }
         });
 
@@ -345,7 +340,6 @@ const resetPassword = async (req, res) => {
             return res.status(400).json({ message: 'Invalid or expired reset token' });
         }
 
-        // Hash the new password before saving
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
         // Update user's password and reset token fields
@@ -361,10 +355,51 @@ const resetPassword = async (req, res) => {
     }
 };
 
+const inviteUser = async (req, res) => {
+    try {
+        const { fullName, emailId, role } = req.body;
+
+        if (!fullName || !emailId || !role) {
+            return res.status(400).json({ message: 'Full Name, Email ID, and Role are required.' });
+        }
+
+        const userExist = await User.findOne({ emailId });
+
+        if (userExist) {
+            return res.status(409).json({ message: 'User with this email already exists.' });
+        }
+
+        // Create the invite email content
+        const mailOptions = {
+            from: process.env.EMAIL, 
+            to: emailId,
+            subject: 'You Are Invited to Work on Doctor CRM',
+            text: `Hello ${fullName},\n\nYou are invited to work on the Doctor CRM system. Please follow the instructions to register and get started.\n\nBest Regards,\nThe Doctor CRM Team`
+        };
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL, 
+                pass: process.env.EMAIL_PASSWORD 
+            }
+        });
+
+        await transporter.sendMail(mailOptions);
+
+        res.status(200).json({
+            message: `An invitation has been sent to ${fullName} at ${emailId}.`
+        });
+
+    } catch (error) {
+        console.error('Error inviting user:', error.message);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
 
 const exportUsersToExcel = async (req, res) => {
     try {
-        const users = await User.find({}, '-password'); // Exclude passwords for security
+        const users = await User.find({}, '-password'); 
 
         if (!users.length) {
             return res.status(404).json({ message: 'No users found.' });
@@ -381,7 +416,7 @@ const exportUsersToExcel = async (req, res) => {
             { header: 'Phone No', key: 'phoneNo', width: 15 },
             { header: 'Address', key: 'address', width: 30 },
             { header: 'Role', key: 'role', width: 15 },
-            { header: 'Photo', key: 'photo', width: 35 }  // Add photo column
+            { header: 'Photo', key: 'photo', width: 35 }  
         ];
 
         // Add user data to the worksheet
@@ -392,7 +427,7 @@ const exportUsersToExcel = async (req, res) => {
                 phoneNo: user.phoneNo,
                 address: user.address,
                 role: user.role,
-                photo: user.photo ? user.photo : 'No photo available' // Check if photo exists
+                photo: user.photo ? user.photo : 'No photo available' 
             });
         });
 
@@ -416,51 +451,6 @@ const exportUsersToExcel = async (req, res) => {
 };
 
 
-const inviteUser = async (req, res) => {
-    try {
-        const { fullName, emailId, role } = req.body;
-
-        if (!fullName || !emailId || !role) {
-            return res.status(400).json({ message: 'Full Name, Email ID, and Role are required.' });
-        }
-
-        const userExist = await User.findOne({ emailId });
-
-        if (userExist) {
-            return res.status(409).json({ message: 'User with this email already exists.' });
-        }
-
-        // Create the invite email content
-        const mailOptions = {
-            from: process.env.EMAIL,  // Your email address
-            to: emailId,
-            subject: 'You Are Invited to Work on Doctor CRM',
-            text: `Hello ${fullName},\n\nYou are invited to work on the Doctor CRM system. Please follow the instructions to register and get started.\n\nBest Regards,\nThe Doctor CRM Team`
-        };
-
-        // Configure nodemailer transporter
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL, // Your email address
-                pass: process.env.EMAIL_PASSWORD // Your email password or app-specific password
-            }
-        });
-
-        // Send the invitation email
-        await transporter.sendMail(mailOptions);
-
-        // Optionally, you could also add the user to the database with a pending status or just send the invite
-        res.status(200).json({
-            message: `An invitation has been sent to ${fullName} at ${emailId}.`
-        });
-
-    } catch (error) {
-        console.error('Error inviting user:', error.message);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
-
 module.exports = {
     addUser,
     updateUser,
@@ -471,6 +461,6 @@ module.exports = {
     logout,
     forgetPassword,
     resetPassword,
-    exportUsersToExcel,
-    inviteUser
+    inviteUser,
+    exportUsersToExcel
 };
