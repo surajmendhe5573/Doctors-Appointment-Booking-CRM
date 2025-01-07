@@ -24,7 +24,7 @@ const hospitalSchema = new mongoose.Schema({
     },
     totalSchedulePayment: {
         type: Number,
-        default: 0, // Default value is 0
+        default: 0, 
     },
     totalDueAmount: { type: Number, default: 0 },
 }, { timestamps: true }); 

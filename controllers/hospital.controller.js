@@ -1,7 +1,6 @@
 const Hospital = require('../models/hospital.model'); 
 const ExcelJS= require('exceljs');
 
-// Add a new hospital
 const addHospital = async (req, res) => {
     try {
 
@@ -11,7 +10,6 @@ const addHospital = async (req, res) => {
             return res.status(400).json({ message: 'All fields are required.' });
         }
 
-        // Check if the hospital already exists (based on email)
         const existingHospital = await Hospital.findOne({ hospitalEmailId });
         if (existingHospital) {
             return res.status(400).json({ message: 'Hospital with this email already exists.' });
@@ -34,14 +32,8 @@ const addHospital = async (req, res) => {
     }
 };
 
-// Update an existing hospital
 const updateHospital = async (req, res) => {
     try {
-
-        // // Check if the user has the role 'Doctor'
-        // if (req.user.role !== 'Doctor') {
-        //     return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-        // }
 
         const { id } = req.params;
         const { hospitalName, hospitalEmailId, hospitalPhoneNo, adminFullName, adminPhoneNo } = req.body;
@@ -50,7 +42,6 @@ const updateHospital = async (req, res) => {
             return res.status(400).json({ message: 'All fields are required.' });
         }
 
-        // Find hospital by ID and update
         const updatedHospital = await Hospital.findByIdAndUpdate(
             id,
             {
@@ -74,19 +65,11 @@ const updateHospital = async (req, res) => {
     }
 };
 
-// Delete a hospital
 const deleteHospital = async (req, res) => {
   try {
 
-    
-    //  // Check if the user has the role 'Doctor'
-    // if (req.user.role !== 'Doctor') {
-    //         return res.status(403).json({ message: 'Access Denied. Only doctors can add reports.' });
-    // }
+      const { id } = req.params; 
 
-      const { id } = req.params; // Hospital ID from the URL
-
-      // Find and delete the hospital by ID
       const deletedHospital = await Hospital.findByIdAndDelete(id);
 
       if (!deletedHospital) {
@@ -100,51 +83,6 @@ const deleteHospital = async (req, res) => {
   }
 };
 
-
-// const getAllHospitals = async (req, res) => {
-//     try {
-//         // Fetch all hospitals with the total payment amount of their schedules
-//         const hospitals = await Hospital.aggregate([
-//             {
-//                 $lookup: {
-//                     from: 'schedules', // Name of the Schedule collection in MongoDB
-//                     localField: '_id',  // The hospital's ID field
-//                     foreignField: 'hospital', // The 'hospital' field in the Schedule collection
-//                     as: 'schedules',
-//                 },
-//             },
-//             {
-//                 $addFields: {
-//                     totalSchedulePayment: { $sum: '$schedules.paymentAmount' }, // Total payment amount for all schedules
-//                     totalAmountReceived: { $sum: '$schedules.amountReceived' }, // Total received amount for all schedules
-//                 },
-//             },
-//             {
-//                 $addFields: {
-//                     // Calculate the remaining due amount
-//                     totalDueAmount: { $subtract: ['$totalSchedulePayment', '$totalAmountReceived'] }
-//                 }
-//             },
-//             {
-//                 $project: {
-//                     schedules: 0, // Exclude the schedules field from the response
-//                 },
-//             },
-//         ]);
-
-//         if (!hospitals.length) {
-//             return res.status(404).json({ message: 'No hospitals found.' });
-//         }
-
-//         return res.status(200).json({
-//             message: 'Hospitals retrieved successfully.',
-//             hospitals,
-//         });
-//     } catch (error) {
-//         console.error(error);
-//         return res.status(500).json({ message: 'An error occurred.', error: error.message });
-//     }
-// };
 
 const getAllHospitals = async (req, res) => {
     try {
