@@ -4,19 +4,16 @@ const cors= require('cors');
 const path= require('path');
 require('dotenv').config();
 
-// middleware
 app.use(express.json());
-// app.use(cors());
+app.use(express.urlencoded({ extended: true }));
 
 // Configure CORS middleware
 const corsOptions = {
-    origin: 'http://localhost:5173', // Specify your frontend origin
-    credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+    origin: 'http://localhost:5173', 
+    credentials: true, 
   };
+app.use(cors(corsOptions));
 
-app.use(express.urlencoded({ extended: true }));
-
-// Serve the uploads directory as a static folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
@@ -28,13 +25,12 @@ app.get('/', (req, res)=>{
 
 require('./db/DB');
 
-// routes
 app.use('/api/users', require('./routes/user'));
 app.use('/api/hospitals', require('./routes/hospital.route'));
 app.use('/api/reports', require('./routes/report'));
 app.use('/api/schedules', require('./routes/schedule'));
 
-// port
+
 app.listen(port, ()=>{
     console.log(`Server is running on http://localhost:${port}`);
 })
