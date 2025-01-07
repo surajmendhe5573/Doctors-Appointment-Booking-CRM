@@ -8,39 +8,33 @@ exports.createSchedule = async (req, res) => {
     try {
         const { doctorId, hospitalName, patientName, surgeryType, startDateTime, endDateTime, day, paymentAmount, paymentStatus } = req.body;
 
-        // Validate the start and end date/times
         if (!startDateTime || !endDateTime) {
             return res.status(400).json({ message: 'Start date/time and End date/time are required.' });
         }
 
-        // Parse the provided startDateTime and endDateTime using moment.js
         const start = moment(startDateTime, 'D MMM, YYYY h:mm A');
         const end = moment(endDateTime, 'D MMM, YYYY h:mm A');
 
-        // Check if the parsed date is valid
         if (!start.isValid() || !end.isValid()) {
             return res.status(400).json({ message: 'Invalid date/time format provided. Use "1 Dec, 2024 9:00 AM" format.' });
         }
 
-        // Convert to JavaScript Date objects for use in the Schedule model
         const startDate = start.toDate();
         const endDate = end.toDate();
 
         // Validate the derived day from startDateTime if it's not passed
-        let derivedDay = day || start.toLocaleString('en-US', { weekday: 'long' }); // Use provided day or derive from startDateTime
+        let derivedDay = day || start.toLocaleString('en-US', { weekday: 'long' }); 
 
         const validDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         if (!validDays.includes(derivedDay)) {
             return res.status(400).json({ message: 'Invalid day provided. Must be Sunday to Saturday.' });
         }
 
-        // Check if hospital exists
         const hospital = await Hospital.findOne({ hospitalName });
         if (!hospital) {
             return res.status(404).json({ message: 'Hospital not found!' });
         }
 
-        // Check if doctor exists
         const doctor = await User.findById(doctorId);
         if (!doctor || doctor.role !== 'Doctor') {
             return res.status(404).json({ message: 'Doctor not found!' });
@@ -55,18 +49,17 @@ exports.createSchedule = async (req, res) => {
             day: derivedDay,  // Use the derived day (from request or calculated)
             startDateTime: startDate,
             endDateTime: endDate,
-            status: 'Upcoming', // Default status
+            status: 'Upcoming',
             paymentAmount,
             paymentStatus
         });
 
-        // Save the schedule
         const savedSchedule = await newSchedule.save();
 
         // Populate doctor and hospital fields for the response
         const populatedSchedule = await Schedule.findById(savedSchedule._id)
-            .populate('doctor', 'name') // Populate doctor's name
-            .populate('hospital', 'hospitalName'); // Populate hospital's name
+            .populate('doctor', 'name') 
+            .populate('hospital', 'hospitalName'); 
 
         // Format the response with formatted date/times
         const response = {
@@ -76,8 +69,8 @@ exports.createSchedule = async (req, res) => {
             patientName: populatedSchedule.patientName,
             surgeryType: populatedSchedule.surgeryType,
             day: populatedSchedule.day, // Include day in response
-            startDateTime: moment(populatedSchedule.startDateTime).format('D MMM, YYYY h:mm A'), // Format date
-            endDateTime: moment(populatedSchedule.endDateTime).format('D MMM, YYYY h:mm A'), // Format date
+            startDateTime: moment(populatedSchedule.startDateTime).format('D MMM, YYYY h:mm A'), 
+            endDateTime: moment(populatedSchedule.endDateTime).format('D MMM, YYYY h:mm A'),
             status: populatedSchedule.status,
             paymentAmount: populatedSchedule.paymentAmount,
             paymentStatus: populatedSchedule.paymentStatus,
