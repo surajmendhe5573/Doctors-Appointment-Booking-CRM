@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const upload= require('../utils/upload');
 const moment = require('moment');
+const redis= require('../utils/redisClient');
 require('dotenv').config();
 
 const addUser = async (req, res) => {
@@ -253,23 +254,60 @@ const deleteUser = async (req, res) => {
 };
 
 
+// const getAllUsers = async (req, res) => {
+//     try {
+
+//         // Allow admins to fetch all users
+//         if(req.user.role !== 'Admin') {
+//             return res.status(403).json({ message: 'You are not authorized to update this user' });
+//         }
+
+//         const users = await User.find({}, '-password');
+
+//         if (!users.length) {
+//             return res.status(404).json({ message: 'No users found.' });
+//         }
+
+//         return res.status(200).json({ message: 'Users retrieved successfully.', users });
+//     } catch (error) {
+//         console.log(error);
+//         return res.status(500).json({ message: 'An error occurred.', error: error.message });
+//     }
+// };
+
 const getAllUsers = async (req, res) => {
     try {
-
-        // Allow admins to fetch all users
-        if(req.user.role !== 'Admin') {
-            return res.status(403).json({ message: 'You are not authorized to update this user' });
+        // Ensure only Admin can fetch all users
+        if (req.user.role !== 'Admin') {
+            return res.status(403).json({ message: 'You are not authorized to fetch users.' });
         }
 
-        const users = await User.find({}, '-password');
+        // Check Redis cache
+        const cachedUsers = await redis.get('all_users');
+        if (cachedUsers) {
+            console.log('Cache hit - returning users from Redis');
+            return res.status(200).json({ 
+                message: 'Users retrieved successfully from cache.', 
+                users: JSON.parse(cachedUsers) 
+            });
+        }
 
+        // Fetch from database if not in cache
+        const users = await User.find({}, '-password');
         if (!users.length) {
             return res.status(404).json({ message: 'No users found.' });
         }
 
-        return res.status(200).json({ message: 'Users retrieved successfully.', users });
+        // Store in Redis cache with an expiration time (e.g., 1 hour)
+        await redis.set('all_users', JSON.stringify(users), 'EX', 3600);
+
+        console.log('Cache miss - users fetched from database and stored in Redis');
+        return res.status(200).json({ 
+            message: 'Users retrieved successfully.', 
+            users 
+        });
     } catch (error) {
-        console.log(error);
+        console.error(error);
         return res.status(500).json({ message: 'An error occurred.', error: error.message });
     }
 };
